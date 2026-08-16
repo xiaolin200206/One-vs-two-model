@@ -69,6 +69,7 @@ def welch(a, b):
 
 def main():
     f = load(RES)
+    g = load(REP) if REP.exists() else None
 
     # ---------------- provenance ----------------
     hdr("PROVENANCE  (Section III-A, III-D)")
@@ -84,9 +85,28 @@ def main():
               f"V {d.vbat_start_v.iloc[0]:.3f}->{d.vbat_end_v.iloc[-1]:.3f}")
     print("\n  All trials: performance governor, on battery (negative pack current AND")
     print("  zero VBUS on every sample), zero live throttling nibble.")
-    hottest = max(f[k].peak_temp.max() for k in CFG)
-    print(f"\n  Hottest single trial across all 32: {hottest:.1f} C "
-          f"({THROTTLE_ONSET_C - hottest:.1f} C below the {THROTTLE_ONSET_C:.0f} C throttling onset)")
+
+    hot_rep = max(f[k].peak_temp.max() for k in CFG)
+    hot_old = max(g[k].peak_temp.max() for k in CFG) if g else float('nan')
+    print(f"\n  Hottest single trial, reported session (n=32):    {hot_rep:.2f} C "
+          f"({THROTTLE_ONSET_C - hot_rep:+.2f} C vs the {THROTTLE_ONSET_C:.0f} C onset)")
+    print(f"  Hottest single trial, replication session (n=32): {hot_old:.2f} C "
+          f"({THROTTLE_ONSET_C - hot_old:+.2f} C vs the {THROTTLE_ONSET_C:.0f} C onset)")
+    if hot_old >= THROTTLE_ONSET_C:
+        print(f"\n  NOTE: at least one replication-session trial reached or exceeded the")
+        print(f"  nominal {THROTTLE_ONSET_C:.0f} C onset while the live throttling nibble still read 0.")
+        print( "  Trials at or above 79 C, both sessions:")
+        for lab, src in (("reported", f), ("replication", g)):
+            for k in CFG:
+                for _, r in src[k][src[k].peak_temp >= 79.0].iterrows():
+                    print(f"    {lab:11s} {NICE[k]:16s} trial {int(r.trial)}  "
+                          f"T={r.peak_temp:.2f} C  throttle_bits={int(r.throttle_bits)}")
+        print("\n  The correct statement is therefore NOT '0.7 C of headroom'. Peak")
+        print("  temperature is a SAMPLED maximum (the environment sampler fires once")
+        print("  per 20 inferences, i.e. every ~7 s at 640 and ~31 s at 1280, ~15 times")
+        print("  per trial), so both the recorded peaks and the zero throttle counts are")
+        print("  lower bounds on thermal stress, not exhaustive observations. See")
+        print("  ERRATA.md, item 1.")
 
     # ---------------- Table III ----------------
     hdr("TABLE III  — MODEL COMPLEXITY AND SYSTEM BEHAVIOR")
@@ -187,7 +207,6 @@ def main():
     # ---------------- replication session ----------------
     if REP.exists():
         hdr("REPLICATION SESSION  (Section III-D, IV-B, IV-D)")
-        g = load(REP)
         print("  An earlier, independently-run session, before the power and provenance")
         print("  instrumentation was added (11 columns, no power telemetry).\n")
         worst_lat = worst_cache = 0.0
@@ -209,13 +228,20 @@ def main():
 
         print("\n  Peak temperature — the ordering REVERSES between sessions:")
         for r in ["640", "1280"]:
-            gu, gs = g[f"combined_{r}"].peak_temp.mean(), g[f"separate_{r}"].peak_temp.mean()
-            fu, fs = f[f"combined_{r}"].peak_temp.mean(), f[f"separate_{r}"].peak_temp.mean()
-            print(f"    @{r:4s} replication: uni {gu:5.2f} vs sep {gs:5.2f} -> "
-                  f"{'unified' if gu > gs else 'separate'} hotter")
-            print(f"    {'':5s} reported   : uni {fu:5.2f} vs sep {fs:5.2f} -> "
-                  f"{'unified' if fu > fs else 'separate'} hotter")
-        print("\n  This is why the paper makes NO architectural claim from peak temperature.")
+            gu, gs = g[f"combined_{r}"].peak_temp, g[f"separate_{r}"].peak_temp
+            fu, fs = f[f"combined_{r}"].peak_temp, f[f"separate_{r}"].peak_temp
+            _, _, gp = welch(gu, gs)
+            _, _, fp = welch(fu, fs)
+            print(f"    @{r:4s} replication: uni {gu.mean():5.2f} vs sep {gs.mean():5.2f} -> "
+                  f"{'unified' if gu.mean() > gs.mean() else 'separate':8s} hotter   p={gp:.4f}"
+                  f"{'' if gp < 0.05 else '   (NOT significant)'}")
+            print(f"    {'':5s} reported   : uni {fu.mean():5.2f} vs sep {fs.mean():5.2f} -> "
+                  f"{'unified' if fu.mean() > fs.mean() else 'separate':8s} hotter   p={fp:.4f}"
+                  f"{'' if fp < 0.05 else '   (NOT significant)'}")
+        print("\n  Three of these four contrasts are nominally significant and they point in")
+        print("  opposite directions between sessions; the fourth (replication @1280) is")
+        print("  not significant at all. Either way there is no stable architectural")
+        print("  ordering, which is why the paper makes NO claim from peak temperature.")
 
     hdr("DONE — every number above is computed from results/, none is hard-coded.")
 

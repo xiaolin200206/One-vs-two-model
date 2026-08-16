@@ -24,7 +24,7 @@ Everyone assumes **(B)** is more accurate ("specialists are better at their own 
 
 3. **Raising the input resolution from 640 to 1280 costs 4.4× latency and 4.3× energy, and moves mean AP@0.5 by +0.007.** It does not add accuracy. It *redistributes* it: small-target classes gain, large-target classes lose (Spearman ρ = −0.72, p = 0.008).
 
-**What is NOT claimed.** Peak temperature does **not** discriminate the two architectures. The ordering between them reverses between two independent sessions on the same hardware (see `results/session_replication/`). No trial in either session throttled.
+**What is NOT claimed.** Peak temperature does **not** discriminate the two architectures. The ordering between them reverses between two independent sessions on the same hardware (see `results/session_replication/`). The live throttle nibble read zero in all 64 trials — but it is polled roughly 15 times per trial, so that is a lower bound, not an exhaustive observation (`ERRATA.md`, item 1).
 
 ---
 
@@ -33,6 +33,11 @@ Everyone assumes **(B)** is more accurate ("specialists are better at their own 
 ```bash
 python scripts/reproduce_paper.py
 ```
+
+> **Read `ERRATA.md` first.** Every number below was independently recomputed
+> from the released CSVs. All headline results hold. One substantive
+> correction was made — the thermal-headroom claim — and it is recorded there
+> rather than quietly amended.
 
 This regenerates **every system-level number in the paper** — Tables III and IV, all Welch tests, the second-model subtraction argument, the capacity-matched bound, the resolution-scaling ratios, and the cross-session replication check — directly from `results/`. Nothing is hard-coded.
 
@@ -145,7 +150,7 @@ Energy is read from the UPS HAT's power-management MCU (I²C `0x2D`) at **2 Hz**
 | Idle | 2.6–3.0 W | **4.7–4.8 W** |
 | Active (sustained) | 6.8–8.8 W | **11.8–12.3 W** |
 
-**1.4–1.8× the published board-level figure.** Both published sources already include the Active Cooler, so the excess is *not* the fan: it is the HAT's quiescent draw, the loss across its buck converter, and the change of measurement node.
+**1.3–1.8× the published board-level figure.** Both published sources already include the Active Cooler, so the excess is *not* the fan: it is the HAT's quiescent draw, the loss across its buck converter, and the change of measurement node.
 
 > **Any energy or endurance budget computed from published board-level figures will be optimistic by a large factor.**
 
@@ -172,16 +177,27 @@ Both are released, because they support two different claims.
 
 | | Replication session | Reported session |
 |---|---|---|
-| @640 | separate hotter (77.65 vs. 75.86 °C) | **unified** hotter (78.13 vs. 75.79 °C) |
-| @1280 | **unified** hotter (79.30 vs. 78.82 °C) | separate hotter (77.24 vs. 78.06 °C) |
+| @640 | separate hotter (77.65 vs. 75.86 °C), *p* = 0.008 | **unified** hotter (78.13 vs. 75.79 °C), *p* = 0.0002 |
+| @1280 | **unified** hotter (79.30 vs. 78.82 °C), *p* = 0.13 (n.s.) | separate hotter (77.24 vs. 78.06 °C), *p* = 0.017 |
 
-The ordering reverses at **both** resolutions. Both sessions yield nominally significant *p*-values, in opposite directions. This is precisely why **no architectural claim is made from peak temperature** — a single thermal session, however tight its error bars, is not a basis for one.
+The ordering reverses at **both** resolutions. Three of the four contrasts are nominally significant and point in opposite directions between sessions; the fourth (replication @1280, *p* = 0.13) is not significant at all. This is precisely why **no architectural claim is made from peak temperature** — a single thermal session, however tight its error bars, is not a basis for one.
 
 **Within-session dispersion is tight.** Latency standard deviation is below **0.6%** of the mean for every configuration (0.54%, 0.26%, 0.53%, 0.21%), and no trial drifts systematically across a session — the pre-trial cool-down below 55 °C prevents the thermal accumulation that would otherwise make later trials slower.
 
 ![Per-trial traces](figures/fig_trial_traces.png)
 
-**Thermal margin is thin, and that *is* a result.** No trial in either session throttled. But the hottest single trial reached **79.3 °C** against the vendor's **80 °C** throttling onset — **0.7 °C of headroom, indoors**. None of these configurations should be assumed to survive tropical field ambient without throttling.
+**Thermal margin is exhausted, and that *is* a result.** The live throttling nibble read zero in all 64 trials across both sessions. But the recorded peaks run right up to — and past — the vendor's **80 °C** onset:
+
+| | hottest single trial | vs. 80 °C onset |
+|---|---|---|
+| Reported session (n = 32) | 79.30 °C | −0.70 °C |
+| Replication session (n = 32) | **80.40 °C** | **+0.40 °C** |
+
+Ten trials across the two sessions recorded ≥ 79 °C, and one **crossed the nominal onset while the live throttle nibble still read 0**. `reproduce_paper.py` lists all ten.
+
+Two things follow, and the second is a limitation rather than a result. First, there is no usable thermal headroom here — not 0.7 °C, but none. Second, **peak temperature is a sampled maximum, not an exhaustive one**: the environment sampler fires once per 20 inferences (~7 s at 640, ~31 s at 1280; roughly 15 samples per trial), so a short throttling event between samples would not be recorded. The recorded peaks and the zero throttle counts are therefore **lower bounds on thermal stress**. See `ERRATA.md`, item 1.
+
+None of these configurations should be assumed to survive tropical field ambient without throttling.
 
 ---
 
@@ -218,12 +234,16 @@ An earlier attempt (around step 1) to merge all categories into one detector **f
 │   ├── refair_eval_commonval.py     # ← THE evaluation script. Scores all four configs on ONE val set.
 │   ├── target_size.py               # per-class bbox pixel area → "small" vs "large" targets
 │   ├── reproduce_paper.py           # ← regenerates EVERY system number in the paper from results/
-│   └── make_figures.py              # regenerates every figure from results/
+│   ├── make_figures.py              # regenerates the exploratory figures from results/
+│   └── make_paper_figures.py        # regenerates the four manuscript figures
 ├── results/
 │   ├── cachebench_{combined,separate}_{640,1280}.csv     # reported session, 27 columns
 │   └── session_replication/
 │       └── cachebench_{combined,separate}_{640,1280}.csv # earlier session, 11 columns, no power
+├── ERRATA.md                        # audit log: what was rechecked, what changed
 ├── figures/
+│   ├── Fig1..Fig4_*.pdf             # the four manuscript figures (vector)
+│   └── fig_*.png                    # exploratory figures
 ├── docs/
 │   └── env_report.txt               # full on-device environment dump (see note below)
 └── data/
@@ -342,7 +362,9 @@ A control measurement shows the governor pinning is a matter of rigor rather tha
 
 **Result:** latency standard deviation below **0.6%** of the mean across all four configurations, and **0/8 throttled trials in every configuration, in both sessions.**
 
-**What this protocol made visible.** The hottest single trial across all 32 reached **79.3 °C** against the vendor's **80 °C** throttling onset. That is **0.7 °C of margin — indoors.** The vendor's thresholds are firmware-level and are *not* exposed as kernel thermal-zone trip points (the trip points this board exposes are the Active Cooler's fan-curve steps at 50/60/67.5/75 °C, and a 110 °C critical shutdown).
+**What this protocol made visible — and what it cannot see.** The hottest trial in the reported session reached **79.3 °C** against the vendor's **80 °C** onset; in the replication session one trial reached **80.4 °C**, crossing it, with the live throttle nibble still reading 0. The vendor's thresholds are firmware-level and are *not* exposed as kernel thermal-zone trip points (the trip points this board exposes are the Active Cooler's fan-curve steps at 50/60/67.5/75 °C, and a 110 °C critical shutdown), so a crossing need not raise the flag the harness polls.
+
+The protocol's own limit is the sampling rate: `sample_env()` runs once per 20 inferences, about 15 times per trial. Peak temperature and the throttle count are therefore **sampled** quantities. A future revision should poll them from the power-sampler thread, which already runs continuously at 2 Hz in the parent process.
 
 So the honest statement is not *"1280 is fine."* It is: *"nothing here has meaningful thermal headroom, and none of it should be assumed to survive tropical field ambient."*
 
