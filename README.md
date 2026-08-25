@@ -292,11 +292,23 @@ Two lines in it are easy to misread, and the file says so at the top:
 is a *firmware* threshold, not a kernel trip point — which is why the firmware version is
 recorded alongside the kernel version.
 
-**On the data.** The durian image dataset and the trained weights are proprietary (ongoing commercialization) and are not released.
+**On the data.** Everything is released. The v1 image dataset and its twelve-class annotations (both the 640 and 1280 exports) are at [10.5281/zenodo.22089067](https://doi.org/10.5281/zenodo.22089067) under CC BY-NC 4.0. The six trained detectors, in PyTorch and ONNX form, are at [10.5281/zenodo.22089355](https://doi.org/10.5281/zenodo.22089355) under AGPL-3.0, inherited from Ultralytics YOLO11 — which is why they are a separate record from the imagery. This repository is archived at [10.5281/zenodo.22089647](https://doi.org/10.5281/zenodo.22089647) under the MIT licence.
+
+Three artefacts, three DOIs, three licences:
+
+| | DOI | Licence |
+|---|---|---|
+| v1 dataset (640 + 1280 exports) | [22089067](https://doi.org/10.5281/zenodo.22089067) | CC BY-NC 4.0 |
+| Six trained detectors | [22089355](https://doi.org/10.5281/zenodo.22089355) | AGPL-3.0 |
+| This code repository | [22089647](https://doi.org/10.5281/zenodo.22089647) | MIT |
+
+The licences differ because the rights differ: the imagery is the author's, the weights derive from Ultralytics YOLO11, and the harness is original code.
 
 **On provenance.** The images were assembled from several sources: photographs taken by the author at durian orchards in Peninsular Malaysia, images contributed by growers and collaborators through messaging applications, and a smaller number obtained from growers in Vietnam. Per-image provenance — orchard, tree, photographer, capture date — was not recorded at collection time and cannot now be reconstructed; EXIF did not survive the annotation-platform export. **The validation split therefore cannot be grouped by collection site, and every AP figure here is a pooled figure.** This does not touch the architectural comparison, which scores both configurations on the identical split so that any sampling bias applies equally to each, and every claim rests on a difference rather than an absolute level. It does mean these AP values are not an estimate of performance at an orchard outside this collection. Everything needed to reproduce the *method* — every script, the exact protocol, and the raw per-trial telemetry behind the system tables — is here.
 
-`docs/env_report.txt` identifies each of the six ONNX artefacts by opset, input shape, precision and file size. `scripts/artefact_digests.py` additionally writes a SHA256 manifest to `docs/artefact_digests.txt`; a digest identifies a file without disclosing it, so the artefacts that produced the released telemetry can be pinned even though the weights are withheld.
+`docs/env_report.txt` identifies each of the six ONNX artefacts by opset, input shape, precision and file size, and each Zenodo record carries a `SHA256SUMS.txt` covering every deposited file. `scripts/artefact_digests.py` regenerates the digest manifest locally if you want to check a copy against the deposit.
+
+**Reproduced across versions.** On 2026-08-25 the accuracy evaluation was re-run from the deposited weights against the deposited validation split under Ultralytics 8.4.87 — a different minor version from the 8.3.245 used to produce the paper — and all 72 per-class AP@0.5 values reproduced to three decimals. `scripts/preflight.py` checks every path before you try it.
 
 **On the benchmark sessions.** The 640 and 1280 experiments were each run as one uninterrupted session on a single battery charge (640: 98→87% SoC; 1280: 100→59%). Within each session the unified configuration ran first, so architecture is confounded with time-on-battery in block order. The 0.35% control above bounds that effect, and its direction favours the *separate* configuration, which ran at the lower pack voltage — **so the advantages reported here are conservative.** The SoC and pack-voltage envelope of every block is in the CSVs; `reproduce_paper.py` prints it.
 

@@ -357,3 +357,33 @@ estimate of performance at an orchard outside this collection.
 (Dataset and integrity checks) and as a new Limitations entry. Stated
 prominently in the Zenodo dataset record so that anyone downloading it is told
 before they evaluate on it.
+
+
+---
+
+## 11. Data and weights released; withholding statements removed
+
+The manuscript, the cover letter and this repository previously described the
+imagery and trained weights as withheld assets of a commercialisation effort,
+available only under a data-use agreement. That is no longer the case, and it
+had also become inconsistent with the author's other deposit, which had already
+placed overlapping imagery in the open.
+
+Both are now deposited:
+
+| | DOI | Licence |
+|---|---|---|
+| v1 dataset, 640 and 1280 exports | [10.5281/zenodo.22089067](https://doi.org/10.5281/zenodo.22089067) | CC BY-NC 4.0 |
+| Six trained detectors, `.pt` and `.onnx` | [10.5281/zenodo.22089355](https://doi.org/10.5281/zenodo.22089355) | AGPL-3.0 |
+
+Two records rather than one because the licences differ and a Zenodo record
+carries a single licence: the imagery is the author's to license, while the
+weights are derivatives of Ultralytics YOLO11 and inherit AGPL-3.0.
+
+**Consequences.** The competing-interest statement no longer claims
+confidentiality over any material; it declares an interest in the domain and
+records that nothing is withheld. The data-availability statement now points at
+both deposits. The paragraph explaining that system measurements could be
+reproduced *without* the imagery is retained, because it remains true and is
+useful to anyone who does not want to download 474 MB, but it is no longer
+doing the work of an excuse.
