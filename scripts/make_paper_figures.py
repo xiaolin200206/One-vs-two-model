@@ -6,11 +6,29 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Rectangle
 import numpy as np
+import pandas as pd
 from scipy import stats
 import os
 
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "figures")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(ROOT, "figures")
 os.makedirs(OUT, exist_ok=True)
+
+# Every system-level value plotted below is read from results/ rather than
+# typed in. Hard-coding the rounded Table III/IV cells instead (e.g. 22.39/4.54
+# for the cache ratio, or 26.20 for separate@1280 energy) puts the figures at
+# odds with the text in the third significant figure.
+RES = os.path.join(ROOT, "results")
+DAT = {k: pd.read_csv(os.path.join(RES, f"cachebench_{k}.csv"))
+       for k in ("combined_640", "separate_640", "combined_1280", "separate_1280")}
+
+
+def M(cfg, col, scale=1.0):
+    return DAT[cfg][col].mean() * scale
+
+
+def S(cfg, col, scale=1.0):
+    return DAT[cfg][col].std(ddof=1) * scale
 
 plt.rcParams.update({
     "font.family": "DejaVu Sans",
@@ -194,8 +212,10 @@ def fig2():
 def fig3():
     fig, ax = plt.subplots(figsize=(4.6, 3.3))
     labels = ["GFLOPs", "LLC read\nmisses", "Wall-clock\nlatency"]
-    vals = [86.3/21.6, 22.39/4.54, 1561.5/357.7]
-    print(f"  scaling ratios: {[round(v,3) for v in vals]}")
+    vals = [86.3 / 21.6,
+            M("combined_1280", "ll_cache_miss_rd") / M("combined_640", "ll_cache_miss_rd"),
+            M("combined_1280", "lat_mean") / M("combined_640", "lat_mean")]
+    print(f"  scaling ratios: {[round(v, 4) for v in vals]}")
     cols = [GREY, "#8c6bb1", UNI]
 
     bars = ax.bar(labels, vals, width=.55, color=cols, edgecolor="none", zorder=3)
@@ -230,10 +250,16 @@ def fig4():
     groups = ["640", "1280"]
     x = np.arange(2); w = .34
 
-    lat_u, lat_u_sd = [357.7, 1561.5], [1.9, 8.2]
-    lat_s, lat_s_sd = [510.8, 2213.9], [1.3, 4.7]
-    en_u,  en_u_sd  = [4.37, 18.61], [.05, .20]
-    en_s,  en_s_sd  = [6.14, 26.20], [.03, .06]
+    lat_u    = [M(f"combined_{g}", "lat_mean") for g in groups]
+    lat_u_sd = [S(f"combined_{g}", "lat_mean") for g in groups]
+    lat_s    = [M(f"separate_{g}", "lat_mean") for g in groups]
+    lat_s_sd = [S(f"separate_{g}", "lat_mean") for g in groups]
+    en_u     = [M(f"combined_{g}", "energy_per_img_j") for g in groups]
+    en_u_sd  = [S(f"combined_{g}", "energy_per_img_j") for g in groups]
+    en_s     = [M(f"separate_{g}", "energy_per_img_j") for g in groups]
+    en_s_sd  = [S(f"separate_{g}", "energy_per_img_j") for g in groups]
+    print(f"  latency  uni {[round(v,1) for v in lat_u]}  sep {[round(v,1) for v in lat_s]}")
+    print(f"  energy   uni {[round(v,2) for v in en_u]}  sep {[round(v,2) for v in en_s]}")
 
     ek = dict(elinewidth=.9, capsize=2.5, capthick=.9, ecolor="#333333")
 

@@ -379,7 +379,7 @@ The load-bearing statement is therefore the weaker, defensible one: *accuracy do
 
 **The protocol:**
 - Cool the device below **55 °C before every trial** (the script busy-waits and polls temperature).
-- **8 independent trials** per configuration, 100 images × 3 rounds each (300 inferences per trial).
+- **8 trials** per configuration, consecutive within one battery session, 100 images × 3 rounds each (300 inferences per trial). The trials of a configuration are not independent in the sense a t-test assumes; see ERRATA.md item 8.
 - Pin the CPU governor to `performance` **and record it in every trial record**, so any frequency drop is *thermal*, not power-saving — by construction. The harness refuses to start otherwise.
 - Record the **live** throttling flag (the low nibble of `vcgencmd get_throttled`, **not** the sticky history bits, which persist until reboot) every trial and report it.
 - Read cache counters from **hardware performance counters**, not estimates.

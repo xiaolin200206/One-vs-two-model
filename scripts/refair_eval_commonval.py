@@ -280,7 +280,8 @@ def main():
     print("=" * 88)
     print("  B1 = leaf+pest merged, NO fusion (strict lower bound)")
     print("  B2 = class-agnostic NMS (IoU 0.5) over the merged set (the fair operating point)")
-    print("  -> the paper's Table I prints the Uni and B2 columns; Table S-V prints all six.\n")
+    print("  -> the paper's Table I prints the Uni and B2 columns; the README\n"
+          "     of this repository prints all six.\n")
     print(f"  {'class':22s}{'Uni@640':>10}{'B1@640':>10}{'B2@640':>10}"
           f"{'Uni@1280':>10}{'B1@1280':>10}{'B2@1280':>10}")
     for i, nm in enumerate(merged_names):

@@ -387,3 +387,55 @@ both deposits. The paragraph explaining that system measurements could be
 reproduced *without* the imagery is retained, because it remains true and is
 useful to anyone who does not want to download 474 MB, but it is no longer
 doing the work of an excuse.
+
+
+---
+
+## 12. Figures were hard-coded, and two values had drifted from the text
+
+`scripts/make_paper_figures.py` typed its plotted values in by hand rather than
+reading `results/`, while `scripts/reproduce_paper.py` computed everything from
+the CSVs. Two of the typed values had drifted:
+
+- **Fig. 3 (scaling), cache ratio.** The script computed `22.39 / 4.54` — the
+  *rounded* Table III cells — giving 4.93. From the unrounded means the ratio is
+  4.9355, i.e. **4.94**, which is what the text says. The figure and the text
+  disagreed in the third significant figure, and the figure was the wrong one.
+- **Fig. 4 (latency and energy), separate @1280 gross energy.** The script still
+  carried **26.20**, the value corrected to 26.19 in item 2 of this log. The
+  manuscript was fixed at the time; the figure script was not.
+
+Both figures now read from `results/` and are regenerated from it, so a
+divergence of this kind cannot recur silently. This also removes an
+inconsistency with the repository's own claim that its numbers are generated
+rather than transcribed: that claim held for `reproduce_paper.py` and did not
+hold for the figures.
+
+## 13. Figures renumbered to order of first citation
+
+The manuscript contained no in-text figure citations at all: the figures
+appeared only as captions. Callouts have been added — the scaling figure in the
+latency section, the latency/energy figure in the energy section, the
+target-size figure in the resolution section, and the measurement-chain figure
+in the Methods — and the figures renumbered so that the order of first citation
+runs 1, 2, 3, 4 as Cell Press requires. Old Fig. 3 is now Fig. 1, old Fig. 4 is
+Fig. 2, old Fig. 2 is Fig. 3, and old Fig. 1 is Fig. 4.
+
+## 14. Thermal significance was overstated
+
+The manuscript stated that "both sessions yield nominally significant
+*p*-values, in opposite directions." Three of the four session-by-resolution
+contrasts are significant; the fourth, the replication session at 1280, gives
+*p* = 0.13. `reproduce_paper.py` had printed this correctly all along. The claim
+is now stated as three of four, which if anything supports the paper's position
+more directly, since the paper's point is that peak temperature yields no stable
+architectural ordering.
+
+Also corrected in the same section: "no trial in any configuration throttled"
+is now "no trial raised the throttling flag", since the same paragraph goes on
+to explain that the flag is not a reliable witness.
+
+## 15. Table IV, P_idle of separate @1280
+
+Printed as 4.80; the measured mean is 4.7946, so **4.79**. `reproduce_paper.py`
+prints 4.79.
