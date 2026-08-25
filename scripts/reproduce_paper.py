@@ -35,6 +35,28 @@ PARAMS_M = {"combined_640": 9.43, "separate_640": 12.02,
 BATTERY_WH = 72.0
 THROTTLE_ONSET_C = 80.0  # vendor: progressive throttling in the 80-85 C band [28]
 
+# Per-class AP@0.5 on the common 12-class validation set (187 images, 1,765
+# instances), as emitted by scripts/refair_eval_commonval.py. Reproduced here so
+# that the aggregation sensitivity below can be checked without the model
+# weights, which are not released. Running refair_eval_commonval.py against the
+# weights regenerates these values.
+PERCLASS = [
+    # class,               inst,  area px2,  uni640, uni1280
+    ("Stem_borer",           33,      336,    0.151,  0.132),
+    ("Psyllid_damage",      418,      494,    0.366,  0.479),
+    ("Psyllid",             539,     1140,    0.317,  0.476),
+    ("Algal",               275,     1529,    0.416,  0.464),
+    ("weevil_damage",        78,     2190,    0.823,  0.929),
+    ("Scale_insect",         57,     6538,    0.242,  0.296),
+    ("Phomopsis",           160,    12203,    0.810,  0.818),
+    ("weevil",                4,    13209,    0.578,  0.495),   # under-sampled, pre-declared
+    ("Leaf_rot",             83,    36885,    0.784,  0.776),
+    ("leafhopper_damage",    39,    48864,    0.513,  0.435),
+    ("Root_disease",         59,    70358,    0.393,  0.346),
+    ("Pink_disease",         20,   291112,    0.407,  0.235),   # under-sampled, pre-declared
+]
+UNDERSAMPLED = {"weevil", "Pink_disease"}
+
 
 def load(d):
     out = {}
@@ -65,6 +87,17 @@ def welch(a, b):
     va, vb, n = a.var(ddof=1), b.var(ddof=1), len(a)
     df = (va / n + vb / n) ** 2 / ((va / n) ** 2 / (n - 1) + (vb / n) ** 2 / (n - 1))
     return t, df, p
+
+
+def welch_ci(a, b, conf=0.95):
+    """Mean difference (b - a) with a Welch confidence interval."""
+    na, nb = len(a), len(b)
+    va, vb = a.var(ddof=1), b.var(ddof=1)
+    diff = b.mean() - a.mean()
+    se = np.sqrt(va / na + vb / nb)
+    df = se ** 4 / ((va / na) ** 2 / (na - 1) + (vb / nb) ** 2 / (nb - 1))
+    tc = stats.t.ppf(1 - (1 - conf) / 2, df)
+    return diff, diff - tc * se, diff + tc * se
 
 
 def main():
@@ -137,25 +170,98 @@ def main():
               f"{gross:13.2f} +/- {sd(f,k,'energy_per_img_j'):.2f} "
               f"{net:10.2f} {e0/gross:8.2f}x {BATTERY_WH*3600/gross:12,.0f}")
 
-    # ---------------- Welch tests ----------------
-    hdr("STATISTICAL TESTS  (Welch, unequal variance, n = 8 per group)")
+    # ---------------- effect sizes and intervals ----------------
+    hdr("DIFFERENCES WITH 95% CONFIDENCE INTERVALS  (n = 8 per group)")
     METR = [("Latency (ms)", "lat_mean", 1.0),
             ("LL cache read misses (e9)", "ll_cache_miss_rd", 1e-9),
             ("L2 cache refills (e9)", "l2d_cache_refill", 1e-9),
             ("Gross energy per image (J)", "energy_per_img_j", 1.0),
             ("Peak temperature (C)", "peak_temp", 1.0)]
     print(f"{'Res':>5s} {'Metric':28s} {'Unified':>9s} {'Separate':>9s} {'Reduction':>10s} "
-          f"{'t':>9s} {'df':>6s} {'p':>10s}")
+          f"{'Difference (sep - uni), 95% CI':>34s} {'+/- as % of diff':>17s}")
     for r in ["640", "1280"]:
-        u, s = f[f"combined_{r}"], f[f"separate_{r}"]
+        u, s_ = f[f"combined_{r}"], f[f"separate_{r}"]
         for name, c, sc in METR:
-            a, b = u[c] * sc, s[c] * sc
-            t, df, p = welch(a, b)
+            a, b = u[c] * sc, s_[c] * sc
+            diff, lo, hi = welch_ci(a, b)
+            half = (hi - lo) / 2
             print(f"{r:>5s} {name:28s} {a.mean():9.3f} {b.mean():9.3f} "
-                  f"{(b.mean()-a.mean())/b.mean()*100:+9.1f}% {t:9.1f} {df:6.1f} {p:10.1e}")
+                  f"{(b.mean()-a.mean())/b.mean()*100:+9.1f}% "
+                  f"{diff:+12.3f} [{lo:+.3f}, {hi:+.3f}]".ljust(36) +
+                  f"{abs(half/diff)*100:10.1f}%")
+
+    print("\n  On p-values. Welch tests over these groups return the following, and the")
+    print("  paper does NOT report them as its headline:")
+    for r in ["640", "1280"]:
+        u, s_ = f[f"combined_{r}"], f[f"separate_{r}"]
+        for name, c, sc in METR[:1] + METR[3:4]:
+            t, df, p = welch(u[c] * sc, s_[c] * sc)
+            print(f"    @{r:4s} {name:28s} t={t:8.1f}  df={df:5.1f}  p={p:.2e}")
+    print("\n  Those figures describe the determinism of the apparatus, not the strength")
+    print("  of evidence about a population: within-configuration dispersion is under")
+    print("  0.6% of the mean, and the eight trials of a configuration are CONSECUTIVE")
+    print("  WITHIN ONE BATTERY SESSION with the unified configuration always first, so")
+    print("  they are not independent in the sense a t-test assumes. The intervals above")
+    print("  describe this apparatus in this session; the cross-session replication")
+    print("  reported below is the more meaningful check. See ERRATA.md, item 8.")
+
     print("\n  Peak temperature is the one metric whose architectural ordering is NOT stable:")
     print("  it reverses between resolutions here and reverses again in the replication")
     print("  session (see below). No architectural claim is made from it.")
+
+    # ---------------- accuracy aggregation sensitivity ----------------
+    hdr("ACCURACY: AGGREGATION SENSITIVITY  (ERRATA.md items 6 and 7)")
+    name = np.array([c[0] for c in PERCLASS])
+    inst = np.array([c[1] for c in PERCLASS], float)
+    area = np.array([c[2] for c in PERCLASS], float)
+    a640 = np.array([c[3] for c in PERCLASS], float)
+    a1280 = np.array([c[4] for c in PERCLASS], float)
+    d = a1280 - a640
+    keep10 = np.array([n not in UNDERSAMPLED for n in name])
+
+    print("  The SAME predictions on the SAME images, under three aggregations:\n")
+    print(f"    {'Aggregation':26s} {'640':>8s} {'1280':>8s} {'delta':>9s}")
+    m12 = (a640.mean(), a1280.mean())
+    m10 = (a640[keep10].mean(), a1280[keep10].mean())
+    wi = ((inst * a640).sum() / inst.sum(), (inst * a1280).sum() / inst.sum())
+    for lab, (x, y) in [("12-class macro (primary)", m12),
+                        ("10-class macro", m10),
+                        ("instance-weighted", wi)]:
+        print(f"    {lab:26s} {x:8.3f} {y:8.3f} {y-x:+9.3f}")
+    print(f"\n    => the headline moves by an order of magnitude "
+          f"({m12[1]-m12[0]:+.3f} to {wi[1]-wi[0]:+.3f}) "
+          f"depending only on what is averaged over.")
+    print("    (Table II in the manuscript rounds the 10-class macro to 0.482/0.515,")
+    print("     hence +0.033 there against the +0.0335 computed from 3-dp per-class values.)")
+
+    ig, il = inst[d > 0].sum(), inst[d < 0].sum()
+    print(f"\n  Why: {int(ig):,} of {int(inst.sum()):,} validation instances "
+          f"({ig/inst.sum()*100:.0f}%) sit on classes that GAIN at 1280;")
+    print(f"  {int(il):,} ({il/inst.sum()*100:.0f}%) sit on classes that lose. A macro-average weighs a")
+    print(f"  {int(inst.min())}-instance class as heavily as a {int(inst.max())}-instance one, so the gains and")
+    print("  losses appear to cancel. Weighted by instance they do not come close.")
+    print("  The +0.007 figure is a property of the averaging, NOT a statement that")
+    print("  the extra computation bought nothing. See ERRATA.md, item 6.")
+
+    print(f"\n  Gaining set: n={int((d>0).sum())}, mean area {area[d>0].mean():9,.0f} px2, "
+          f"{int(inst[d>0].sum()):,} instances")
+    print(f"  Losing  set: n={int((d<0).sum())}, mean area {area[d<0].mean():9,.0f} px2, "
+          f"{int(inst[d<0].sum()):,} instances   -> ratio {area[d<0].mean()/area[d>0].mean():.1f}x")
+    k = keep10
+    print(f"  Excluding both pre-declared classes, the losing set falls to "
+          f"{area[k & (d<0)].mean():,.0f} px2 -> ratio {area[k & (d<0)].mean()/area[k & (d>0)].mean():.1f}x")
+
+    print("\n  Rank correlation between target area and AP gain, and its sensitivity:\n")
+    for lab, m in [("all twelve classes", np.ones(12, bool)),
+                   ("excluding weevil", name != "weevil"),
+                   ("excluding BOTH pre-declared", keep10)]:
+        rho, pv = stats.spearmanr(area[m], d[m])
+        flag = "" if pv < 0.05 else "   <-- NOT significant at 0.05"
+        print(f"    {lab:30s} n={int(m.sum()):2d}   rho={rho:+.3f}   p={pv:.4f}{flag}")
+    print("\n  Pink_disease is the extreme point of the area axis (291,112 px2) and carries")
+    print("  part of the correlation. The manuscript reports all three values and treats")
+    print("  the trend as directional evidence consistent with the mechanism, not as an")
+    print("  independently significant finding. See ERRATA.md, item 7.")
 
     # ---------------- derived quantities ----------------
     hdr("DERIVED QUANTITIES  (Section IV-B)")
@@ -243,7 +349,16 @@ def main():
         print("  not significant at all. Either way there is no stable architectural")
         print("  ordering, which is why the paper makes NO claim from peak temperature.")
 
-    hdr("DONE — every number above is computed from results/, none is hard-coded.")
+    hdr("DONE")
+    print("  Every system-level number above — Tables III and IV, the intervals, the")
+    print("  derived quantities, the capacity-matched bound, the resolution scaling and")
+    print("  the replication check — is computed from results/ and none is hard-coded.")
+    print("\n  The accuracy section is the one exception: its per-class inputs (PERCLASS,")
+    print("  top of this file) are the output of scripts/refair_eval_commonval.py, which")
+    print("  needs the model weights and cannot run here. They are reproduced verbatim so")
+    print("  that the AGGREGATION SENSITIVITY — which is the claim being made — can be")
+    print("  checked without them. Running refair_eval_commonval.py against the weights")
+    print("  regenerates the inputs.")
 
 
 if __name__ == "__main__":

@@ -118,9 +118,10 @@ checked. **Requires a manuscript edit in Table IV.**
 
 The exact ratio is 0.3438 / 0.2594 = 1.325, i.e. **+32.5%**. The manuscript
 rounds the range to "20–33%", the README to "+32%". Both are defensible
-roundings of the same number, but they should agree. Recommend "20–33%" in the
-manuscript prose and "+32%" in the per-configuration table, with a note, or
-simply "+33%" in both.
+roundings of the same number, but they should agree.
+
+**Resolved in item 9.** The exact ratios are +20.07% and +32.48%, so the range
+is **20–32%**. The manuscript and the README now both use it.
 
 ---
 
@@ -160,3 +161,199 @@ digit:
 
 `python scripts/reproduce_paper.py` regenerates all of the system figures above
 from the CSVs, with nothing hard-coded.
+
+---
+
+## 6. Aggregate accuracy: the resolution claim was aggregation-dependent — substantive
+
+**What was claimed.** Manuscript and README both stated that raising the input
+resolution from 640 to 1280 *"does not add accuracy"* and only *"redistributes"*
+it, on the strength of the 12-class macro-average moving by +0.007.
+
+**What the released data shows.** The same predictions, on the same images,
+under the other two aggregations this repository already reports:
+
+| Aggregation | 640 | 1280 | Δ |
+|---|---|---|---|
+| 12-class macro (primary) | 0.483 | 0.490 | +0.007 |
+| 10-class macro | 0.482 | 0.515 | +0.033 |
+| **Instance-weighted** | **0.436** | **0.520** | **+0.084 (+19.2%)** |
+
+**1,527 of the 1,765 validation instances (86.5%) sit on classes that gain**;
+238 sit on classes that lose. `Psyllid` (539 inst., +0.159) and
+`Psyllid_damage` (418 inst., +0.113) account for 957 instances between them.
+Six-gain/six-lose "cancellation" is a property of equal class weighting only.
+
+**Why it matters.** The two robustness aggregations were used elsewhere in the
+paper to defend the unified detector in the architectural comparison, and then
+not applied to the resolution claim — where they point the other way. Reporting
++0.007 as "no accuracy gain" while releasing the data that gives +0.084 is the
+same class of discrepancy as item 1.
+
+**Corrected statement.** Higher resolution *does* buy accuracy on this
+workload, concentrated on the small-target classes that carry most of the
+annotated instances. The recommendation of 640 stands on cost — 4.4× latency,
+4.3× energy, a quarter of the endurance, no thermal headroom — and not on the
+claim that 1280 buys nothing.
+
+**Fixed in:** `README.md`, `scripts/make_paper_figures.py` (Fig. 2 title and
+annotation boxes). **Applied to the manuscript** in the Summary, Bigger
+Picture, Introduction, Results, Discussion, Conclusion, and Limitations.
+
+---
+
+## 7. The Spearman correlation was reported at its strongest form only — substantive
+
+**What was claimed.** ρ = −0.72 (p = 0.008) over twelve classes, and ρ = −0.70
+(p = 0.017) excluding `weevil`.
+
+**What the released data shows.** Two classes are declared under-sampled and
+non-interpretable *a priori* — `weevil` (4 instances) and `Pink_disease` (20).
+Only the first was ever excluded from the reported correlation:
+
+| Aggregation | n | ρ | p |
+|---|---|---|---|
+| All twelve classes | 12 | −0.720 | 0.008 |
+| Excluding `weevil` | 11 | −0.700 | 0.017 |
+| **Excluding both pre-declared classes** | **10** | **−0.600** | **0.067** |
+
+`Pink_disease` is the extreme point of the area axis at 291,112 px² and carries
+a large share of the rank correlation. Excluding both also reduces the
+losing/gaining mean-area ratio from **19× to 9.7×** (4,016 vs. 39,111 px²).
+
+**Why it matters.** Declaring two classes non-interpretable in the Methods and
+then reporting a correlation that excludes only one of them is an asymmetry the
+paper's own protocol makes visible. The correlation does not reach
+significance at n = 10.
+
+**Corrected statement.** The size–benefit relationship is reported as
+directional evidence consistent with the mechanism, with all three ρ values and
+their sensitivity stated, and not as an independently significant finding.
+Twelve classes are too few to establish one.
+
+**Fixed in:** `README.md`, `scripts/make_paper_figures.py` (Fig. 2 now prints
+all three ρ values). **Applied to the manuscript** in the Results, the Fig. 2
+caption, and the Limitations.
+
+---
+
+## 8. Welch p-values replaced by confidence intervals — reporting change
+
+Reported *t* statistics ran to *t* = −185.1, *p* = 8.4 × 10⁻²³, with Hedges' *g*
+between 34 and 92. These describe a deterministic apparatus, not evidence about
+a population: within-configuration dispersion is under 0.6% of the mean, and the
+eight trials of a configuration are **consecutive within a single battery
+session** with the unified configuration always running first — block order
+confounded with time-on-battery, as the Methods already disclose. They are not
+independent in the sense a t-test assumes.
+
+Differences with 95% Welch confidence intervals are now reported instead:
+
+| Contrast | Difference (separate − unified) | 95% CI |
+|---|---|---|
+| Latency @640 | +153.1 ms | 151.3 – 154.9 |
+| Latency @1280 | +652.4 ms | 645.0 – 659.7 |
+| Gross energy @640 | +1.77 J | 1.72 – 1.81 |
+| Gross energy @1280 | +7.59 J | 7.42 – 7.75 |
+
+Every interval half-width falls within 3% of its point estimate. **No result
+changes**; only the way the evidence is characterised. The cross-session
+replication remains the more meaningful check.
+
+**Fixed in:** `README.md`, `scripts/make_paper_figures.py` (Fig. 4 footnote).
+
+
+---
+
+## 9. Full numerical and referencing audit — corrections
+
+Every quantitative claim in the manuscript was checked against the released
+CSVs and against `refair_eval_commonval.py` output, and every reference was
+verified against its published record. All 28 references resolve correctly;
+none is misattributed in author, venue, volume, or identifier. The following
+were corrected.
+
+**Substantive.**
+
+- **A directional error.** The Discussion stated that the separate
+  configuration "costs 30% more latency and 29% more energy." 30% and 29% are
+  the *reductions* the unified configuration achieves; the corresponding
+  increases are **+42.8% / +41.8%** latency and **+40.4% / +40.8%** energy.
+  Corrected to 42% and 40%.
+- **An accuracy overclaim in the Introduction.** It read that the unified
+  detector "matches or exceeds" the separate configuration "at both
+  resolutions." Table I gives 0.490 vs. 0.493 at 1280 under fusion, so this
+  contradicted the paper's own data. Replaced with the claim the Results
+  actually support: accuracy does not favour the separate configuration at
+  either resolution.
+
+**Numerical.**
+
+- Instance shares: 1,527 / 1,765 = 86.52% and 238 / 1,765 = 13.48%, so **87%
+  and 13%**, not 86% and 14% (which also failed to sum correctly).
+- The 10-class macro delta is quoted as **+0.033**, consistent with Table II's
+  rounded 0.482 → 0.515, in all three places it appears.
+- Cache read misses per GFLOP for the second model: exact ratios are
+  **+20.07%** and **+32.48%**, so the range is **20–32%**, not 20–33%.
+- Table IV net energy at 1280 given to two decimals (11.29, 15.59) to match
+  the rest of the column.
+- The peak-temperature spread across configurations is ≈2 °C in range, so "±2
+  °C" is replaced with "≈2 °C".
+
+**Wording and scope.**
+
+- "A script that recomputes every quantitative claim" → **every *system-level*
+  quantitative claim.** The accuracy aggregations depend on per-class AP from
+  `refair_eval_commonval.py`, which needs the unreleased weights; those inputs
+  are reproduced verbatim in `reproduce_paper.py` so the aggregation claim
+  itself remains checkable.
+- The Methods described 2 Hz power samples as "independent" while the Results
+  argue that trials are *not* independent in the t-test sense. The former is a
+  claim about register staleness and is now worded as one.
+- Reference [26] (Khanam and Hussain, a YOLO11 architectural overview) was
+  cited as the source of the single-stage detection paradigm. It is now cited
+  for YOLO11 specifically.
+- Reference [14] (Samanta and Saha, a deployment-oriented review of low-cost
+  edge AI for farming) sat in a group about compression and quantisation. Moved
+  to the group on agricultural single-board deployment, where it belongs.
+- Reference [18] (Mishra and Lone) was buried in a bundled citation despite
+  reporting the same effect from the evaluation side — that benchmark-centric
+  assessment overstates deployed edge performance, by 20–30% relative between
+  static-image and continuous streaming operation. Now discussed rather than
+  listed.
+
+
+---
+
+## 10. Dataset provenance was described more narrowly than the data supports
+
+**What was stated.** The Methods described the imagery as "collected under
+natural field conditions in Peninsular Malaysia," which implies a single
+region and author collection throughout.
+
+**What is actually the case.** The collection was assembled from several
+sources: photographs taken by the author at Peninsular Malaysian orchards,
+images contributed by growers and collaborators through messaging
+applications, and a smaller number obtained from growers in Vietnam. Per-image
+provenance — orchard, tree, photographer, capture date — was not recorded at
+collection time. An attempt to recover capture dates from EXIF on 2026-08-25
+found metadata on 642 of 39,460 images in the project tree, all of them from a
+later collection round belonging to a different study; none of the v1 images
+retained any EXIF, the annotation-platform export having stripped it.
+
+**Why it matters.** Without a site label there is no grouped split, so every
+AP value in this paper is a pooled figure. Random splitting is known to
+inflate pooled accuracy relative to site-aware splitting on datasets of this
+kind, and nothing here rules out an effect of that kind.
+
+**What it does not touch.** Both architectures are scored on the identical
+validation split, so any sampling bias applies equally to each, and every
+claim in the paper is a difference between configurations rather than an
+absolute level. The resolution comparison is one model across two input sizes
+and is likewise unaffected. What the pooled figures do not support is an
+estimate of performance at an orchard outside this collection.
+
+**Fixed in:** `README.md`. **Applied to the manuscript** in the Methods
+(Dataset and integrity checks) and as a new Limitations entry. Stated
+prominently in the Zenodo dataset record so that anyone downloading it is told
+before they evaluate on it.

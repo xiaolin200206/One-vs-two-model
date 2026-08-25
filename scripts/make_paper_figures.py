@@ -116,13 +116,21 @@ def fig2():
     gain = ap1280 - ap640
     under = np.array([c in ("weevil","Pink_disease") for c in cls])
 
+    inst = np.array([33,418,539,275,78,57,160,4,83,39,59,20], float)
+
     rho, p = stats.spearmanr(area, gain)
-    print(f"  Spearman all 12: rho={rho:.3f} p={p:.4f}")
+    print(f"  Spearman all 12   : rho={rho:.3f} p={p:.4f}")
     m = ~np.isin(cls, ["weevil"])
     rho2, p2 = stats.spearmanr(area[m], gain[m])
-    print(f"  excl. weevil   : rho={rho2:.3f} p={p2:.4f}")
+    print(f"  excl. weevil      : rho={rho2:.3f} p={p2:.4f}")
+    m3 = ~np.isin(cls, ["weevil", "Pink_disease"])
+    rho3, p3 = stats.spearmanr(area[m3], gain[m3])
+    print(f"  excl. both (n=10) : rho={rho3:.3f} p={p3:.4f}   <- not significant")
+    ig, il = inst[gain > 0].sum(), inst[gain < 0].sum()
+    print(f"  instances on gaining classes: {ig:.0f} / {inst.sum():.0f}"
+          f"  ({ig/inst.sum()*100:.0f}%)")
 
-    fig, ax = plt.subplots(figsize=(7.1, 3.5))
+    fig, ax = plt.subplots(figsize=(7.1, 3.95))
     ax.axhline(0, color="black", lw=0.8, zorder=1)
 
     for i, c in enumerate(cls):
@@ -152,16 +160,18 @@ def fig2():
     ax.set_xlabel("Mean bounding-box area (px$^2$, log scale)")
     ax.set_ylabel("$\\Delta$AP@0.5   (1280 $-$ 640)")
     ax.set_xlim(200, 6.5e5)
-    ax.set_ylim(-.215, .215)
+    ax.set_ylim(-.215, .255)
 
-    ax.text(.985, .97, f"Spearman $\\rho$ = {rho:.2f}  ($p$ = {p:.3f})\n"
-                       f"excluding weevil: $\\rho$ = {rho2:.2f}  ($p$ = {p2:.3f})",
-            transform=ax.transAxes, va="top", ha="right", fontsize=7.4,
+    ax.text(.985, .97, f"Spearman $\\rho$ = {rho:.2f}  ($p$ = {p:.3f})   all 12\n"
+                       f"$\\rho$ = {rho2:.2f}  ($p$ = {p2:.3f})   excl. weevil\n"
+                       f"$\\rho$ = {rho3:.2f}  ($p$ = {p3:.3f})   excl. both $\\dagger$  (n.s.)",
+            transform=ax.transAxes, va="top", ha="right", fontsize=7.2,
             bbox=dict(boxstyle="round,pad=0.4", fc="white", ec=LGREY, lw=.7))
 
-    ax.text(.985, .765, "6 classes gain   mean area 4,016 px$^2$\n"
-                        "6 classes lose   mean area 76,794 px$^2$",
-            transform=ax.transAxes, va="top", ha="right", fontsize=7.4,
+    ax.text(.985, .715, "6 gain   mean area 4,016 px$^2$   1,527 instances\n"
+                       "6 lose   mean area 76,794 px$^2$      238 instances\n"
+                       "excl. $\\dagger$: area ratio 19$\\times$ $\\rightarrow$ 9.7$\\times$",
+            transform=ax.transAxes, va="top", ha="right", fontsize=7.2,
             bbox=dict(boxstyle="round,pad=0.4", fc="white", ec=LGREY, lw=.7))
 
     ax.annotate("Stem_borer — departs from trend:\nrecall-limited,\nnot resolution-limited",
@@ -170,7 +180,8 @@ def fig2():
                 arrowprops=dict(arrowstyle="->", lw=.8, color=GREY,
                                 connectionstyle="arc3,rad=-0.3"))
 
-    ax.set_title("Raising resolution redistributes accuracy across target sizes rather than adding it",
+    ax.set_title("The classes that gain from higher resolution are the smaller ones \u2014 "
+                 "and carry 87% of the instances",
                  loc="left", fontweight="bold", pad=8)
     fig.text(.125, -.02, "† Under-sampled in validation (weevil, 4 instances; Pink_disease, 20); "
              "not interpreted individually.", fontsize=6.5, color=GREY)
@@ -256,10 +267,10 @@ def fig4():
                  color=GREY, linespacing=1.45)
 
     fig.text(.02, -.045,
-             "Mean $\\pm$ SD over eight independent trials, on battery, performance governor. "
-             "Latency SD $<$ 0.6% of mean throughout.\n"
-             "Welch's $t$: $-$185.1 ($p$ = 8.4$\\times10^{-23}$) at 640; $-$195.6 ($p$ = 5.5$\\times10^{-21}$) at 1280. "
-             "Zero throttling events in 32 trials.",
+             "Mean $\\pm$ SD over eight trials per configuration, consecutive within one battery session, "
+             "on battery, performance governor. Latency SD $<$ 0.6% of mean throughout.\n"
+             "Mean latency difference 153.1 ms (95% CI 151.3$-$154.9) at 640 and 652.4 ms (645.0$-$659.7) at 1280; "
+             "energy 1.77 J (1.72$-$1.81) and 7.59 J (7.42$-$7.75). Zero throttling events in 32 trials.",
              fontsize=6.5, color=GREY, linespacing=1.5)
     fig.tight_layout()
     save(fig, "Fig4_latency_energy")

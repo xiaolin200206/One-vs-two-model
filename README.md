@@ -2,8 +2,13 @@
 
 Reproducibility repository for:
 
-**"One Model or Two? A Systems Comparison of Unified versus Separate Detection Architectures for Edge-Deployed Crop Disease Monitoring"**
+**One model or two? A joint accuracy–latency–cache–energy–thermal comparison of unified versus separate detection architectures on a constrained edge node.**
 Lin Ding Shan, UCSI University · ORCID [0009-0009-6031-8479](https://orcid.org/0009-0009-6031-8479)
+
+> The manuscript is under review; its title may differ from the descriptive
+> heading above. Every number here is generated from the released data by
+> `scripts/reproduce_paper.py`, so the two remain consistent regardless of
+> where it lands.
 
 ---
 
@@ -20,9 +25,9 @@ Everyone assumes **(B)** is more accurate ("specialists are better at their own 
 
 1. **Accuracy does not favour the separate configuration at either resolution** — not even when it is given the cross-model fusion stage a real deployment would run.
 
-2. **The system axes decide it.** The unified model is **30% faster**, generates **26–28% fewer** last-level cache read misses, and draws **~29% less measured energy** per image (all *p* < 10⁻¹³). And the separate configuration measured here carries the *smaller* pest backbone — so it is the **best case** for the separate architecture. A capacity-matched one would cost **2.00×** the unified detector's latency.
+2. **The system axes decide it.** The unified model is **30% faster**, generates **26–28% fewer** last-level cache read misses, and draws **~29% less measured energy** per image (every 95% CI on the difference within 3% of its point estimate). And the separate configuration measured here carries the *smaller* pest backbone — so it is the **best case** for the separate architecture. A capacity-matched one would cost **2.00×** the unified detector's latency.
 
-3. **Raising the input resolution from 640 to 1280 costs 4.4× latency and 4.3× energy, and moves mean AP@0.5 by +0.007.** It does not add accuracy. It *redistributes* it: small-target classes gain, large-target classes lose (Spearman ρ = −0.72, p = 0.008).
+3. **Raising the input resolution from 640 to 1280 costs 4.4× latency and 4.3× energy. What it buys depends entirely on how accuracy is aggregated:** +0.007 under a 12-class macro-average, +0.033 excluding two under-sampled classes, **+0.084 weighting each validation instance equally.** The classes that gain are the smaller ones, and they carry **1,527 of the 1,765 validation instances (87%)** — which is why the macro-average conceals the gain rather than reporting it. The size–benefit trend is directional, not independently significant: ρ = −0.72 (p = 0.008) over all twelve classes, but ρ = −0.60 (p = 0.067) once *both* pre-declared classes are excluded.
 
 **What is NOT claimed.** Peak temperature does **not** discriminate the two architectures. The ordering between them reverses between two independent sessions on the same hardware (see `results/session_replication/`). The live throttle nibble read zero in all 64 trials — but it is polled roughly 15 times per trial, so that is a lower bound, not an exhaustive observation (`ERRATA.md`, item 1).
 
@@ -39,7 +44,9 @@ python scripts/reproduce_paper.py
 > correction was made — the thermal-headroom claim — and it is recorded there
 > rather than quietly amended.
 
-This regenerates **every system-level number in the paper** — Tables III and IV, all Welch tests, the second-model subtraction argument, the capacity-matched bound, the resolution-scaling ratios, and the cross-session replication check — directly from `results/`. Nothing is hard-coded.
+This regenerates **every system-level number in the paper** — Tables III and IV, the differences and 95% confidence intervals, the second-model subtraction argument, the capacity-matched bound, the resolution-scaling ratios, and the cross-session replication check — directly from `results/`. None of it is hard-coded.
+
+It also prints the **accuracy aggregation sensitivity** (all three aggregations, all three Spearman values). That section is the one exception to "nothing hard-coded": its per-class inputs are the output of `refair_eval_commonval.py`, which needs the model weights and so cannot run from this repository alone. They are reproduced verbatim at the top of the script so the *aggregation* claim — which is what is actually being asserted — can be checked without them.
 
 ```
 Configuration     Params  GFLOPs   Latency/img (ms)   LL-miss rd (e9)  Peak T (C)   Thr
@@ -89,7 +96,7 @@ The nominal 1280 reversal (0.493 vs. 0.490) is produced **entirely** by two clas
 
 † Severely under-sampled in validation; declared non-interpretable *before* any comparison was made.
 
-Six classes gain from 1280 (mean area **4,016 px²**); six lose (mean area **76,794 px²**), a **19×** difference. The gains and losses cancel — which is why the mean barely moves.
+Six classes gain from 1280 (mean area **4,016 px²**, **1,527 instances**); six lose (mean area **76,794 px²**, **238 instances**), a **19×** area difference — **9.7×** once both pre-declared classes are excluded. The gains and losses cancel *under a macro-average*, which weighs a 20-instance class as heavily as a 539-instance class. Weighted by instance they do not come close to cancelling: mean AP rises 0.436 → 0.520.
 
 ### System cost — all measured
 
@@ -182,6 +189,8 @@ Both are released, because they support two different claims.
 
 The ordering reverses at **both** resolutions. Three of the four contrasts are nominally significant and point in opposite directions between sessions; the fourth (replication @1280, *p* = 0.13) is not significant at all. This is precisely why **no architectural claim is made from peak temperature** — a single thermal session, however tight its error bars, is not a basis for one.
 
+**On p-values.** Earlier versions of this README and the manuscript reported Welch *t* statistics (*t* = −185.1, *p* = 8.4×10⁻²³ and similar). Those figures describe the determinism of the apparatus, not evidence about a population: within-configuration dispersion is under 0.6% of the mean, and the eight trials of a configuration are **consecutive within one battery session**, so they are not independent in the sense a t-test assumes. Differences are now reported with 95% confidence intervals — latency 153.1 ms (151.3–154.9) at 640 and 652.4 ms (645.0–659.7) at 1280; energy 1.77 J (1.72–1.81) and 7.59 J (7.42–7.75) — and the cross-session replication below is the more meaningful check.
+
 **Within-session dispersion is tight.** Latency standard deviation is below **0.6%** of the mean for every configuration (0.54%, 0.26%, 0.53%, 0.21%), and no trial drifts systematically across a session — the pre-trial cool-down below 55 °C prevents the thermal accumulation that would otherwise make later trials slower.
 
 ![Per-trial traces](figures/fig_trial_traces.png)
@@ -234,6 +243,7 @@ An earlier attempt (around step 1) to merge all categories into one detector **f
 │   ├── refair_eval_commonval.py     # ← THE evaluation script. Scores all four configs on ONE val set.
 │   ├── target_size.py               # per-class bbox pixel area → "small" vs "large" targets
 │   ├── reproduce_paper.py           # ← regenerates EVERY system number in the paper from results/
+│   ├── artefact_digests.py          # SHA256 manifest for the six ONNX artefacts
 │   ├── make_figures.py              # regenerates the exploratory figures from results/
 │   └── make_paper_figures.py        # regenerates the four manuscript figures
 ├── results/
@@ -282,7 +292,11 @@ Two lines in it are easy to misread, and the file says so at the top:
 is a *firmware* threshold, not a kernel trip point — which is why the firmware version is
 recorded alongside the kernel version.
 
-**On the data.** The durian image dataset and the trained weights are proprietary (ongoing commercialization) and are not released. Everything needed to reproduce the *method* — every script, the exact protocol, and the raw per-trial telemetry behind the system tables — is here.
+**On the data.** The durian image dataset and the trained weights are proprietary (ongoing commercialization) and are not released.
+
+**On provenance.** The images were assembled from several sources: photographs taken by the author at durian orchards in Peninsular Malaysia, images contributed by growers and collaborators through messaging applications, and a smaller number obtained from growers in Vietnam. Per-image provenance — orchard, tree, photographer, capture date — was not recorded at collection time and cannot now be reconstructed; EXIF did not survive the annotation-platform export. **The validation split therefore cannot be grouped by collection site, and every AP figure here is a pooled figure.** This does not touch the architectural comparison, which scores both configurations on the identical split so that any sampling bias applies equally to each, and every claim rests on a difference rather than an absolute level. It does mean these AP values are not an estimate of performance at an orchard outside this collection. Everything needed to reproduce the *method* — every script, the exact protocol, and the raw per-trial telemetry behind the system tables — is here.
+
+`docs/env_report.txt` identifies each of the six ONNX artefacts by opset, input shape, precision and file size. `scripts/artefact_digests.py` additionally writes a SHA256 manifest to `docs/artefact_digests.txt`; a digest identifies a file without disclosing it, so the artefacts that produced the released telemetry can be pinned even though the weights are withheld.
 
 **On the benchmark sessions.** The 640 and 1280 experiments were each run as one uninterrupted session on a single battery charge (640: 98→87% SoC; 1280: 100→59%). Within each session the unified configuration ran first, so architecture is confounded with time-on-battery in block order. The 0.35% control above bounds that effect, and its direction favours the *separate* configuration, which ran at the lower pack voltage — **so the advantages reported here are conservative.** The SoC and pack-voltage envelope of every block is in the CSVs; `reproduce_paper.py` prints it.
 
@@ -454,7 +468,7 @@ Group figures are **instance-weighted** — the mean is over every annotated box
 - Foliar-disease classes: **25,809 px²**
 - Pest classes: **2,854 px²** — roughly 9× smaller
 
-**The correlation.** Across all twelve classes, the rank correlation between class target area and AP gain from 640 → 1280 is **Spearman ρ = −0.72 (p = 0.008)**; excluding `weevil` (4 instances, unstable), ρ = −0.70 (p = 0.017).
+**The correlation, and its sensitivity.** Across all twelve classes, the rank correlation between class target area and AP gain from 640 → 1280 is **Spearman ρ = −0.72 (p = 0.008)**; excluding `weevil` (4 instances), ρ = −0.70 (p = 0.017); **excluding both classes declared under-sampled *a priori*, ρ = −0.60 (p = 0.067) — not significant at n = 10.** `Pink_disease` is the extreme point of the area axis (291,112 px²) and carries part of the correlation. Reported as directional evidence consistent with the mechanism, not as an independently significant finding; twelve classes are too few to establish one.
 
 **The exception.** `Stem_borer` has the smallest mean area in the set (336 px²) yet *loses* 0.019 at 1280. Its failure mode is missed detection against background, not localization — so resolution is not its binding constraint, and no resolution setting rescues it. The gaining and losing sets are therefore **not** simply the six smallest and six largest classes: the relationship is a strong monotone trend, not a partition.
 
@@ -514,8 +528,8 @@ CPU governor pinned to `performance`. Vendor throttling: progressive from **80 �
 ```bibtex
 @misc{lin2026onemodelortwo,
   author = {Lin, Ding Shan},
-  title  = {One Model or Two? A Systems Comparison of Unified versus Separate
-            Detection Architectures for Edge-Deployed Crop Disease Monitoring},
+  title  = {One model or two? Unified versus separate detection architectures
+            on a constrained edge node},
   year   = {2026},
   note   = {Under review},
   url    = {https://github.com/xiaolin200206/One-vs-two-model}
