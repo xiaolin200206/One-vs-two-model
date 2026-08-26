@@ -98,6 +98,8 @@ The nominal 1280 reversal (0.493 vs. 0.490) is produced **entirely** by two clas
 
 Six classes gain from 1280 (mean area **4,016 px²**, **1,527 instances**); six lose (mean area **76,794 px²**, **238 instances**), a **19×** area difference — **9.7×** once both pre-declared classes are excluded. The gains and losses cancel *under a macro-average*, which weighs a 20-instance class as heavily as a 539-instance class. Weighted by instance they do not come close to cancelling: mean AP rises 0.436 → 0.520.
 
+`Algal` is one of the six gaining classes and is the one class whose training data differs between the two resolutions (159 extra training instances at 1280 — see *Problem 6*), so it is worth asking how much of the gain is extra data rather than resolution. **The confound runs the other way:** excluding `Algal`, the instance-weighted gain rises from **+19.2% to +20.6%**, and the rank correlation from ρ = −0.72 (p = 0.008) to ρ = −0.727 (p = 0.011). The reported figure is conservative with respect to this objection. See `ERRATA.md` item 19.
+
 ### System cost — all measured
 
 | Config | Latency/img | LL-cache miss | Gross E/img | Frames/J (rel.) | Images / 72 Wh | Peak T |
@@ -117,10 +119,13 @@ Energy is the trapezoidal integral of the 2 Hz battery-rail trace divided by 300
 
 ## The second model costs more than its arithmetic
 
-The separate configuration executes **1.30× the FLOPs** but costs **1.42–1.43× the wall time**. Because the leaf model shares the unified model's backbone, input size and FLOP count (differing only in output class count), the second model's incremental cost is recoverable by subtraction:
+The separate configuration executes **1.30× the FLOPs** but costs **1.42–1.43× the wall time**. Because the leaf model shares the unified model's backbone, input size and FLOP count (differing only in output class count), the second model's incremental cost is recoverable by subtracting the **leaf** model, not the unified one — at 1280 the two round differently (86.2 vs. 86.3), which is why the subtraction gives 25.8 and not 25.7:
 
 | | @640 | @1280 |
 |---|---|---|
+| Unified detector | 21.6 GFLOPs | 86.3 GFLOPs |
+| Leaf model (same backbone, fewer classes) | 21.6 GFLOPs | 86.2 GFLOPs |
+| Separate configuration (leaf + pest) | 28.0 GFLOPs | 112.0 GFLOPs |
 | Second model costs | 153.1 ms for 6.4 GFLOPs | 652.4 ms for 25.8 GFLOPs |
 | FLOP-proportional prediction | 106.0 ms | 466.8 ms |
 | **Overshoot** | **+44%** | **+40%** |
@@ -133,7 +138,7 @@ The separate configuration executes **1.30× the FLOPs** but costs **1.42–1.43
 
 ### Free of that confound: FLOPs do not predict wall time on this platform
 
-The unified model's own resolution scaling — one model, one backbone, one thread count:
+The unified model's own resolution scaling — one architecture, one backbone, one thread count, with no capacity difference between the two conditions (the 640 and 1280 detectors are separately trained but identical in parameter count and topology):
 
 | | 640 → 1280 |
 |---|---|
@@ -252,7 +257,7 @@ An earlier attempt (around step 1) to merge all categories into one detector **f
 │       └── cachebench_{combined,separate}_{640,1280}.csv # earlier session, 11 columns, no power
 ├── ERRATA.md                        # audit log: what was rechecked, what changed
 ├── figures/
-│   ├── Fig1..Fig4_*.pdf             # the four manuscript figures (vector)
+│   ├── Fig1..Fig4_*.pdf             # the four manuscript figures (vector), numbered by order of first citation
 │   └── fig_*.png                    # exploratory figures
 ├── docs/
 │   └── env_report.txt               # full on-device environment dump (see note below)
@@ -480,7 +485,7 @@ Group figures are **instance-weighted** — the mean is over every annotated box
 - Foliar-disease classes: **25,809 px²**
 - Pest classes: **2,854 px²** — roughly 9× smaller
 
-**The correlation, and its sensitivity.** Across all twelve classes, the rank correlation between class target area and AP gain from 640 → 1280 is **Spearman ρ = −0.72 (p = 0.008)**; excluding `weevil` (4 instances), ρ = −0.70 (p = 0.017); **excluding both classes declared under-sampled *a priori*, ρ = −0.60 (p = 0.067) — not significant at n = 10.** `Pink_disease` is the extreme point of the area axis (291,112 px²) and carries part of the correlation. Reported as directional evidence consistent with the mechanism, not as an independently significant finding; twelve classes are too few to establish one.
+**The correlation, and its sensitivity.** Across all twelve classes, the rank correlation between class target area and AP gain from 640 → 1280 is **Spearman ρ = −0.72 (p = 0.008)**; excluding `weevil` (4 instances), ρ = −0.70 (p = 0.017); **excluding both classes declared under-sampled *a priori*, ρ = −0.60 (p = 0.067) — not significant at n = 10.** `Pink_disease` is the extreme point of the area axis (291,112 px²) and carries part of the correlation. Excluding `Algal` instead — the one class with a training-data asymmetry — gives ρ = −0.727 (p = 0.011), i.e. the trend does not depend on it. Reported as directional evidence consistent with the mechanism, not as an independently significant finding; twelve classes are too few to establish one.
 
 **The exception.** `Stem_borer` has the smallest mean area in the set (336 px²) yet *loses* 0.019 at 1280. Its failure mode is missed detection against background, not localization — so resolution is not its binding constraint, and no resolution setting rescues it. The gaining and losing sets are therefore **not** simply the six smallest and six largest classes: the relationship is a strong monotone trend, not a partition.
 

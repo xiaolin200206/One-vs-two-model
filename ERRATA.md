@@ -269,9 +269,13 @@ replication remains the more meaningful check.
 
 Every quantitative claim in the manuscript was checked against the released
 CSVs and against `refair_eval_commonval.py` output, and every reference was
-verified against its published record. All 28 references resolve correctly;
-none is misattributed in author, venue, volume, or identifier. The following
-were corrected.
+verified against its published record. The following were corrected.
+
+> **Amended 2026-08-26.** This section originally read "All 28 references
+> resolve correctly; none is misattributed in author, venue, volume, or
+> identifier." That claim does not hold: reference [19] carries the wrong
+> middle-author initial. The corrected count is 27 of 28 on first audit; see
+> item 16.
 
 **Substantive.**
 
@@ -439,3 +443,206 @@ to explain that the flag is not a reliable witness.
 
 Printed as 4.80; the measured mean is 4.7946, so **4.79**. `reproduce_paper.py`
 prints 4.79.
+
+---
+
+## 16. Reference [19] is misattributed in the middle author — corrected
+
+**What was claimed.** Item 9 of this log states that "all 28 references resolve
+correctly; none is misattributed in author, venue, volume, or identifier." One
+is.
+
+**What the published record shows.** Reference [19] was cited as
+*D. K. Alqahtani, A. Cheema, and A. N. Toosi*. The middle author is
+**Muhammad Aamir Cheema**, cited by Springer and by every downstream citation of
+the published chapter as **Cheema, M.A.** The initial "A." comes from the arXiv
+preprint (arXiv:2409.16808), which lists the author as "Aamir Cheema"; the
+citation here is to the published LNCS chapter, not the preprint, so the
+published form governs.
+
+The venue was also given only as "ICSOC". The chapter appeared in the
+proceedings of **ICSOC 2024**, published by Springer Singapore in 2025:
+
+> Alqahtani, D.K., Cheema, M.A., and Toosi, A.N. (2025). Benchmarking deep
+> learning models for object detection on edge computing devices. In
+> Service-Oriented Computing (ICSOC 2024), Lecture Notes in Computer Science,
+> vol. 15404 (Springer Singapore), pp. 142–150.
+> https://doi.org/10.1007/978-981-96-0805-8_11
+
+**Why it matters.** A misattributed author initial is small in isolation. It is
+not small when it sits under a blanket assurance that every reference was
+verified — the assurance is what a reader relies on instead of checking, and one
+counterexample retires it. Item 9's claim is amended accordingly: 27 of 28
+references resolved correctly on the first audit; the twenty-eighth is corrected
+here.
+
+**Fixed in:** the manuscript reference list and `README.md`. **Item 9 of this log
+is amended** to remove the blanket claim.
+
+---
+
+## 17. The second model's FLOP subtraction cannot be reconstructed from the published tables — corrected
+
+**What was claimed.** The second model costs **652.4 ms for 25.8 GFLOPs** at
+1280, against a FLOP-proportional prediction of 466.8 ms.
+
+**What a reader can compute.** The complexity table reports the separate
+configuration at **112.0 GFLOPs** and the unified detector at **86.3 GFLOPs**.
+Subtracting those gives **25.7**, not 25.8. Nothing in the tables resolves the
+difference.
+
+The reported figure is correct. The subtraction is *separate total minus the
+leaf model*, and the leaf model is **86.2 GFLOPs** — it shares the unified
+model's backbone and input size and differs only in output class count, so the
+two round differently at three significant figures. 112.0 − 86.2 = 25.8. At 640
+the question does not arise, because leaf and unified both round to 21.6 and
+28.0 − 21.6 = 6.4 either way.
+
+**Why it matters.** The whole argument of this repository is that its numbers
+can be recomputed. A reader who recomputes this one gets a different answer and
+has no way to find out why. The 40% overshoot at 1280 rests on this subtraction.
+
+**Corrected statement.** The leaf model's own arithmetic is now stated inline
+wherever the subtraction appears — 21.6 versus 21.6 GFLOPs at 640, and 86.2
+versus 86.3 at 1280 — so the derivation closes without external information.
+
+**Fixed in:** the manuscript (latency section) and `README.md` (the second-model
+subtraction table, which now carries a leaf-model row).
+
+---
+
+## 18. "One model" overstates what the resolution comparison holds fixed — corrected
+
+**What was claimed.** The confound-free scaling result was introduced as holding
+"one model, one backbone, one thread count."
+
+**What is actually the case.** The unified detector at 640 and the unified
+detector at 1280 are **two separately trained models**. They share an
+architecture, a backbone, a class count, a hyperparameter set, and a seed, and
+they have identical parameter counts — but they are not one model, and they were
+not even trained on identical data (see item 19).
+
+**Why it does not change the result.** The scaling claim is about arithmetic,
+cache traffic, and wall time, all of which depend on the graph topology and the
+input dimensions rather than on the values in the weight tensors. This is the
+same property that makes the system measurements reproducible from the released
+harness without the weights, stated elsewhere in this repository. There is no
+capacity difference between the two conditions, which is what "no confound"
+needs to mean here.
+
+**Why it matters anyway.** The phrase claims something stronger than the
+evidence, in a sentence whose entire purpose is to assert that nothing is
+confounded. That is the worst possible place for a loose word.
+
+**Corrected statement.** "One architecture, one backbone, one thread count, with
+no capacity difference between the two conditions."
+
+**Fixed in:** the manuscript (latency section, introduction) and `README.md`.
+
+---
+
+## 19. The split asymmetry was disclosed but never connected to the resolution claim — substantive, and the sensitivity favours the result
+
+**What was disclosed.** Problem 6 records that the 640 and 1280 exports drew
+different splits: 15 Algal-only images (159 instances) fall in validation for the
+640 export and in training for the 1280 export. All four configurations are
+scored on the common 1280 validation split, and the cross-export audit
+establishes there is no leakage.
+
+**What was never said.** `Algal` is **one of the six classes that gain** from
+1280 (Δ +0.048, 275 validation instances, 18% of the gaining set's instances).
+The 1280 model therefore had 159 Algal training instances the 640 model did not.
+The instance-weighted resolution gain of **+19.2%** — the headline of the
+corrected item 6 — is computed over a set that includes a class whose training
+data differs between the two conditions. A reader who notices this has an
+obvious objection: how much of the gain is extra training data rather than
+resolution?
+
+**What the released data shows.**
+
+| | instance-weighted Δ | relative |
+|---|---|---|
+| All twelve classes | +0.0838 | **+19.2%** |
+| Excluding `Algal` | +0.0904 | **+20.6%** |
+
+The rank correlation is likewise unaffected: ρ = −0.727 (*p* = 0.011) excluding
+`Algal`, against −0.720 (*p* = 0.008) over all twelve.
+
+**Why it matters.** The confound runs the other way. Removing the only class
+whose training data differs makes the resolution effect *larger*, not smaller,
+so the reported figure is conservative with respect to this particular
+objection. That is worth stating for the same reason item 1 was worth stating:
+the objection is visible in the released data, and it is better answered than
+discovered.
+
+**Corrected statement.** The instance-weighted gain is reported as +19.2% with
+the `Algal` sensitivity stated alongside it. The split asymmetry remains a
+limitation for the absolute Algal figures; it does not carry the resolution
+finding.
+
+**Fixed in:** `README.md` and the manuscript (resolution section).
+
+---
+
+## 20. The novelty claim needs a sharper boundary against Kong et al. — wording
+
+**What was claimed.** "No prior study, to our knowledge, measures accuracy,
+latency, hardware cache counters, in-line battery-rail energy, and thermal
+behavior together for the same architectural decision on the same node."
+
+**What the cited work reports.** Kong et al. (reference [4]) explicitly include
+**energy-per-inference behaviour and power–energy measurements** among the axes
+of their benchmark, alongside latency, bandwidth sensitivity, and multi-core
+behaviour. The sentence above remains true — their power figures are not taken
+in line at a battery pack upstream of a regulator, and reading the Cortex-A76
+performance monitoring unit is not available to them at all, since their models
+execute on fixed-function Rockchip NPUs rather than on the general-purpose core.
+But the claim as written leans on two unstated qualifiers to survive, and the
+most likely reviewer of this manuscript is someone who knows that paper well.
+
+**Why it matters.** A novelty claim that is technically true and reads as
+overreaching costs more than it buys. The distinction here is real and easy to
+name.
+
+**Corrected statement.** The two qualifiers are now explicit: no prior study
+measures these axes together for the same architectural decision on the same
+node, and none reads hardware performance counters on the executing core or
+measures energy upstream of the node's regulator.
+
+**Fixed in:** the manuscript (introduction). No repository text is affected.
+
+---
+
+## 21. Figure filenames did not match the figure numbers — corrected
+
+**What was the case.** Item 13 renumbered the figures to the order of first
+citation, and `figures/CAPTIONS.md` was updated to match. The **filenames were
+not**. From that point until 2026-08-26 the repository shipped:
+
+| File | Actually contains | Caption number |
+|---|---|---|
+| `Fig1_measurement_chain.*` | instrumentation schematic | **Fig. 4** |
+| `Fig2_ap_gain_vs_area.*` | AP gain versus target area | **Fig. 3** |
+| `Fig3_scaling_decomposition.*` | memory-traffic scaling ratios | **Fig. 1** |
+| `Fig4_latency_energy.*` | latency and energy | **Fig. 2** |
+
+**Why it matters.** Every filename disagreed with its own caption, in a
+directory whose `CAPTIONS.md` exists specifically so that figures and legends
+cannot drift apart. Anyone assembling a submission package from these files —
+including the author — would have mislabelled two of the four.
+
+**Corrected.** The files are renamed to the citation order, and
+`scripts/make_paper_figures.py` now writes them under the new names, so the
+mapping is generated rather than maintained by hand:
+
+```
+Fig1_memory_traffic.*       (was Fig3_scaling_decomposition)
+Fig2_latency_energy.*       (was Fig4_latency_energy)
+Fig3_ap_gain_vs_area.*      (was Fig2_ap_gain_vs_area)
+Fig4_measurement_chain.*    (was Fig1_measurement_chain)
+```
+
+The scaling figure's subtitle was regenerated at the same time to carry the
+item 18 wording. All four figures were re-rendered from `results/`.
+
+**Fixed in:** `figures/`, `scripts/make_paper_figures.py`, `figures/CAPTIONS.md`.

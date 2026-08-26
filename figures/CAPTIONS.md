@@ -4,13 +4,13 @@ Legends as they appear in the manuscript, reproduced verbatim so the two cannot
 drift apart. Each figure has a `.pdf` (vector — use this for submission) and a
 `.png` (600 dpi, for preview or Word).
 
-Figures are numbered in order of first citation in the text. Every plotted value
+Figures are numbered in order of first citation in the text, and the filenames match that numbering (see `ERRATA.md` item 21; they did not until 2026-08-26). Every plotted value
 is computed from `results/` by `scripts/make_paper_figures.py`; nothing is typed
 in. See `ERRATA.md` items 12–13 for what changed and why.
 
 ---
 
-**Fig. 1. Memory traffic, not arithmetic, governs latency on this platform.** Ratios of 1280 to 640 for the unified detector — one model, one backbone, one thread count, so no capacity confound is present. Quadrupling the input area scales arithmetic exactly (4.00×), but last-level cache read misses grow 4.94× and measured wall-clock latency lands at 4.37×, between the two.
+**Fig. 1. Memory traffic, not arithmetic, governs latency on this platform.** Ratios of 1280 to 640 for the unified detector — one architecture, one backbone, one thread count, with no capacity difference between the two conditions. Quadrupling the input area scales arithmetic exactly (4.00×), but last-level cache read misses grow 4.94× and measured wall-clock latency lands at 4.37×, between the two.
 
 ---
 

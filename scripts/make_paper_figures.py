@@ -118,7 +118,7 @@ def fig1():
             "Discharge control: active power varies 0.35% between a full pack (16.57 V) and a 25% pack (13.57 V).  "
             "Battery operation verified per sample by two witnesses.",
             fontsize=6.5, color=GREY, va="center")
-    save(fig, "Fig1_measurement_chain")
+    save(fig, "Fig4_measurement_chain")
 
 
 # ----------------------------------------------------------------------
@@ -203,7 +203,7 @@ def fig2():
                  loc="left", fontweight="bold", pad=8)
     fig.text(.125, -.02, "† Under-sampled in validation (weevil, 4 instances; Pink_disease, 20); "
              "not interpreted individually.", fontsize=6.5, color=GREY)
-    save(fig, "Fig2_ap_gain_vs_area")
+    save(fig, "Fig3_ap_gain_vs_area")
 
 
 # ----------------------------------------------------------------------
@@ -236,10 +236,10 @@ def fig3():
     ax.set_title("Memory traffic, not arithmetic,\nsets the latency", loc="left",
                  fontweight="bold", pad=8)
     fig.text(.02, -.05,
-             "Single model, single backbone, single thread count — no capacity confound.\n"
+             "One architecture, one backbone, one thread count — no capacity difference.\n"
              "Weights 36.2 MiB against a 2 MiB shared L3: never resident, streamed from DRAM every inference.",
              fontsize=6.5, color=GREY, linespacing=1.5)
-    save(fig, "Fig3_scaling_decomposition")
+    save(fig, "Fig1_memory_traffic")
 
 
 # ----------------------------------------------------------------------
@@ -299,7 +299,7 @@ def fig4():
              "energy 1.77 J (1.72$-$1.81) and 7.59 J (7.42$-$7.75). Zero throttling events in 32 trials.",
              fontsize=6.5, color=GREY, linespacing=1.5)
     fig.tight_layout()
-    save(fig, "Fig4_latency_energy")
+    save(fig, "Fig2_latency_energy")
 
 
 if __name__ == "__main__":
