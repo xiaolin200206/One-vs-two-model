@@ -1,4 +1,6 @@
-# One Model or Two? — Unified vs. Separate Detection Architectures on the Edge
+# Memory traffic sets the wait, the idle floor sets the working day
+
+**Measured constraints on a hand-carried crop-inspection node.** One model or two? — and, it turns out, a second question the first one exposes: what actually constrains a device an operator carries through a working day.
 
 Reproducibility repository for:
 
@@ -9,6 +11,26 @@ Lin Ding Shan, UCSI University · ORCID [0009-0009-6031-8479](https://orcid.org/
 > heading above. Every number here is generated from the released data by
 > `scripts/reproduce_paper.py`, so the two remain consistent regardless of
 > where it lands.
+
+---
+
+## What the device is
+
+This is not an unattended sensor node. It is carried.
+
+A smallholder durian grower with no agronomist on call and no reliable connectivity detects the infections that kill mature trees by walking the orchard and looking. On the plantation that motivates this work — **20 acres, roughly 700 trees at 35–40 ft spacing** — the trees are **patrolled once a week in two segments**, and at each tree the operator stops, inspects the trunk base and the canopy, photographs, waits for an answer, and moves on. Trunk-base infection is the principal cause of death: it is recognised by yellow exudate and cracking, is treatable while confined to the exterior, and is **not recoverable once it reaches the taproot**, at which point the tree dies within about three months. The grower reports losing five mature trees in eleven years, each worth RM 10,000–20,000.
+
+Three properties follow, and none of them holds for the continuously-running node most edge-inference work assumes:
+
+| | |
+|---|---|
+| **Operator-in-the-loop** | a person waits at the tree, so latency is *experienced*, not merely logged |
+| **Intermittent** | inference occupies a few hundred ms of a per-tree cycle measured in tens of seconds |
+| **Decision-weighted** | a missed pest costs a spray round (~RM 2,700 for the orchard); a missed trunk infection costs a tree |
+
+Workflow parameters come from a structured interview with the grower, conducted with informed consent and on the understanding that neither grower nor farm would be identified.
+
+> **This framing is a correction.** Earlier versions of this repository and the manuscript described the deployment as a sustained, unattended, solar-or-battery field node. It is not, and the difference changes which conclusions bind. See `ERRATA.md` item 22.
 
 ---
 
@@ -98,7 +120,18 @@ The nominal 1280 reversal (0.493 vs. 0.490) is produced **entirely** by two clas
 
 Six classes gain from 1280 (mean area **4,016 px²**, **1,527 instances**); six lose (mean area **76,794 px²**, **238 instances**), a **19×** area difference — **9.7×** once both pre-declared classes are excluded. The gains and losses cancel *under a macro-average*, which weighs a 20-instance class as heavily as a 539-instance class. Weighted by instance they do not come close to cancelling: mean AP rises 0.436 → 0.520.
 
-`Algal` is one of the six gaining classes and is the one class whose training data differs between the two resolutions (159 extra training instances at 1280 — see *Problem 6*), so it is worth asking how much of the gain is extra data rather than resolution. **The confound runs the other way:** excluding `Algal`, the instance-weighted gain rises from **+19.2% to +20.6%**, and the rank correlation from ρ = −0.72 (p = 0.008) to ρ = −0.727 (p = 0.011). The reported figure is conservative with respect to this objection. See `ERRATA.md` item 19.
+`Algal` is one of the six gaining classes and is the one class whose training data differs between the two resolutions (159 extra training instances at 1280 — see *Problem 6*), so it is worth asking how much of the gain is extra data rather than resolution. **The confound runs the other way:** excluding `Algal`, the instance-weighted gain rises from **+19.2% to +20.6%**, and the rank correlation from ρ = −0.72 (p = 0.008) to ρ = −0.727 (p = 0.011). See `ERRATA.md` item 19.
+
+**But no aggregate answers the deployment question, because the twelve classes are not equally consequential.** Pest damage is managed by a spray round; a trunk-base infection missed until it reaches the taproot costs a mature tree. Split the label space along that line and the conclusion an aggregate score supports reverses:
+
+| Group | Classes | Instances | Inst-wtd area | Macro 640 → 1280 | Inst-wtd 640 → 1280 |
+|---|---|---|---|---|---|
+| **Foliar disease** | 5 | 597 | 25,809 px² | 0.562 → 0.528 **(−0.034)** | 0.570 → 0.583 (+0.013) |
+| Insect pest | 7 | 1,168 | 2,855 px² | 0.427 → 0.463 (+0.036) | 0.367 → 0.488 **(+0.120)** |
+
+Higher resolution buys pest accuracy and gives the disease classes essentially nothing, while the two largest disease targets lose outright (`Pink_disease` −0.172, `Root_disease` −0.047). **The classes that decide whether a tree survives are the large ones, and large targets are exactly where 1280 gives ground.** The operating point is 640 — not because 1280 is unaffordable, since it costs 1.9% of a patrol segment, but because it trades accuracy on the consequential classes for accuracy on the recoverable ones, and charges 4.4× the wait at every tree to do so.
+
+**One class shows the same lesson at a finer grain.** The grower's collaborator expected higher resolution to separate stem-borer symptoms from a visually similar slime disease on the leaf, reporting that at low resolution the two cannot be told apart. `Stem_borer` has the *smallest* mean target area in the set (336 px²), so the size trend predicts a gain — and it **loses 0.019** at 1280. Its failure mode is missed detection against background, not localisation error, consistent with the same collaborator's observation that borer activity is not visible at the entry hole. Resolution is not its binding constraint; what it needs is annotation and recall, not pixels. Field intuition about which knob to turn was measurable, and measurably wrong.
 
 ### System cost — all measured
 
@@ -174,6 +207,39 @@ Two independent witnesses confirm battery operation on **every sample of every t
 
 ---
 
+## The idle floor, not the model, sets the working day
+
+Per-image energy is not what a patrol spends. At the stated spacing the transit between trees is 10.7–12.2 m, which at ordinary adult walking pace is 8–10 s; with the stop, the inspection, device handling and the wait, the per-tree cycle is tens of seconds. Inference occupies a few hundred milliseconds of it.
+
+`python scripts/session_budget.py` converts the measured power into the quantity that matters — one patrol segment of 350 trees, at a 45 s per-tree cycle:
+
+| Config | Wait | E/img | E/tree | Segment | % of 72 Wh | Segments/charge |
+|---|---|---|---|---|---|---|
+| **Unified @640** | **358 ms** | 4.37 J | 218.5 J | **21.2 Wh** | 29.5% | 3.4 |
+| Separate @640 | 511 ms | 6.14 J | 219.4 J | 21.3 Wh | 29.6% | 3.4 |
+| Unified @1280 | 1,561 ms | 18.61 J | 222.5 J | 21.6 Wh | 30.1% | 3.3 |
+| Separate @1280 | 2,214 ms | 26.19 J | 231.3 J | 22.5 Wh | 31.2% | 3.2 |
+
+At 30 s per tree a segment falls to 14.2–15.5 Wh; at 60 s it rises to 28.2–29.5 Wh. **The ordering and the size of the differences are unchanged across that range**, so the conclusion does not depend on the one parameter that is estimated rather than logged.
+
+**98.8% of a patrol's energy is the idle floor.** The comparison that dominates the per-image table almost vanishes at the segment level:
+
+| | per-image energy | **per-segment energy** | wait |
+|---|---|---|---|
+| architecture @640 | +40.4% | **+0.4%** | +42.8% |
+| architecture @1280 | +40.8% | **+4.0%** | +41.8% |
+| resolution, unified | +325.9% | **+1.9%** | +336.5% |
+
+Two consequences, and both are design guidance rather than caveats.
+
+> **What "98.8%" is measured against.** The share is quoted against the *incremental* draw of inference above the idle floor — 2.67 J of the 218.5 J spent at a tree by the unified detector at 640. Charging the full active draw during inference instead gives 98.0% at a 45 s cycle and 97.0% at 30 s for the same configuration, and 88.7% / 83.6% for `separate @1280`, the least favourable case. `scripts/session_budget.py` prints both. Either way the conclusion holds: the model is not where the working day goes.
+
+**The quantity to measure is the idle floor** — and it is the term the published figures understate *most*: 4.7–4.8 W at the pack against 2.6–3.0 W at the board, a factor of **1.56–1.84×** on the term carrying 98.8% of the budget. (Active power is understated 1.35–1.80×, but active power barely matters here.)
+
+**The pack is over-specified.** One segment costs 21–23 Wh, so the 72 Wh fitted here carries 3.2–3.4 segments — better than three weeks of patrol between charges. Sized to one segment with a doubling for margin, **45 Wh would do**, and the surplus is weight an operator carries for four hours.
+
+---
+
 ## Reproducibility, and what the replication session shows
 
 `results/` holds the **reported session** (27 columns, with full power and provenance telemetry).
@@ -230,7 +296,7 @@ This is not a standalone experiment. It is the fourth step in a chain, and the e
 
 **And it argues against the architecture of the author's own prior work.** Step 2 assumes two models are required and asks only how to schedule them. This study asks whether the second model is needed, and answers *no*.
 
-An earlier attempt (around step 1) to merge all categories into one detector **failed** — for annotation reasons, not architectural ones. A capacity ablation showed a larger backbone did not rescue the suppressed classes, while re-annotation at lesion-level granularity raised the same classes from 0.00 to 0.48–0.81. Only after the annotation was corrected did this comparison become a meaningful experiment.
+An earlier attempt (around step 1) to merge all categories into one detector **failed** — for annotation reasons, not architectural ones. (The manuscript no longer cites that work: the annotation-protocol point is better supported by the published literature on lesion-level analysis, Barbedo 2019, *Biosyst. Eng.* 180:96–107. The history is recorded here because it explains why this comparison only became meaningful after the label space was fixed.) A capacity ablation showed a larger backbone did not rescue the suppressed classes, while re-annotation at lesion-level granularity raised the same classes from 0.00 to 0.48–0.81. Only after the annotation was corrected did this comparison become a meaningful experiment.
 
 ---
 
@@ -501,6 +567,7 @@ conda create -n durian python=3.11 && conda activate durian
 pip install ultralytics onnxruntime pillow numpy pandas scipy matplotlib
 
 # --- verify the released results without any hardware -------------------------
+python scripts/session_budget.py       # patrol-segment budget from the measured power
 python scripts/reproduce_paper.py     # regenerates every system number in the paper
 python scripts/make_figures.py        # regenerates every figure
 
@@ -545,8 +612,8 @@ CPU governor pinned to `performance`. Vendor throttling: progressive from **80 �
 ```bibtex
 @misc{lin2026onemodelortwo,
   author = {Lin, Ding Shan},
-  title  = {One model or two? Unified versus separate detection architectures
-            on a constrained edge node},
+  title  = {Memory traffic sets the wait, the idle floor sets the working day:
+            measured constraints on a hand-carried crop-inspection node},
   year   = {2026},
   note   = {Under review},
   url    = {https://github.com/xiaolin200206/One-vs-two-model}

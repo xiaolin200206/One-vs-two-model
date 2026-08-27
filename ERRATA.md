@@ -646,3 +646,139 @@ The scaling figure's subtitle was regenerated at the same time to carry the
 item 18 wording. All four figures were re-rendered from `results/`.
 
 **Fixed in:** `figures/`, `scripts/make_paper_figures.py`, `figures/CAPTIONS.md`.
+
+---
+
+## 22. The deployment was described as an unattended continuous-inference node; it is a hand-carried intermittent one — substantive
+
+**What was claimed.** The manuscript and this repository framed the work around
+a sustained, unattended, battery- or solar-powered field node: "sustained
+battery-powered inference," "any solar or battery budget," endurance quoted as
+frames per charge under continuous inference, thermal margin argued against
+tropical field ambient over long-duration operation.
+
+**What the deployment actually is.** The device is carried, not installed. A
+grower walks the orchard on a weekly patrol split into two segments of about
+350 trees, stopping at each tree to inspect, photograph, wait for an answer and
+move on. Inference occupies a few hundred milliseconds of a per-tree cycle
+measured in tens of seconds. Workflow parameters were obtained from a
+structured interview with the grower operating the study site.
+
+**Why it matters.** It changes which conclusions bind, and it changes two of
+them by more than an order of magnitude. At a 45 s per-tree cycle:
+
+| | per-image energy | per-segment energy |
+|---|---|---|
+| architecture (unified vs. separate, @640) | +40.4% | **+0.4%** |
+| resolution (640 → 1280, unified) | +325.9% | **+1.9%** |
+
+**98.8% of a patrol's energy is the platform idle floor**, not inference. The
+29% per-image energy advantage that the paper reported as a headline result is
+worth 0.4% of a working day. Conversely the latency advantage, which a
+continuous unattended node merely logs, is *experienced* — the operator waits
+358 ms rather than 511 ms at every one of 350 trees.
+
+Three further corrections follow:
+
+- **The measurement-node finding becomes more important, not less.** The idle
+  floor is understated by **1.56–1.84×** (4.7–4.8 W at the pack against
+  2.6–3.0 W published at the board), and it is the term carrying almost the
+  whole budget. A session budget built from board figures is wrong on the
+  quantity that decides it.
+- **The pack is over-specified.** One segment costs 21–23 Wh; the 72 Wh fitted
+  here carries 3.2–3.4 segments. Sized to one segment with a doubling for
+  margin, 45 Wh would do, and the surplus is weight carried for four hours.
+- **The thermal characterisation measures a load the deployment never imposes.**
+  Peak temperature was recorded under sustained 300-inference runs. A carried
+  device is idle between trees. The "no usable thermal headroom" statement of
+  item 1 stands as a conservative bound but does not describe field operation.
+
+**A modelling error found while writing the script.** An intermediate draft
+computed energy per tree as `P_idle x cycle + P_active x t_inference`, adding
+the inference time on top of the cycle rather than placing it inside.
+`scripts/session_budget.py` uses `P_idle x (cycle - t) + P_active x t`, which
+is correct; the manuscript figures were corrected to match. The effect is
+small (segment 21.4 -> 21.2 Wh for the unified detector at 640) but it moved
+the architecture difference from 0.8% to 0.4%.
+
+**Fixed in:** `README.md` (new deployment section, new session-budget section,
+resolution conclusion), `scripts/session_budget.py` (new, computes the budget
+from `results/` with nothing hard-coded), `figures/CAPTIONS.md`, and the
+manuscript throughout — title, summary, highlights, bigger picture,
+introduction, results, discussion, conclusions and limitations.
+
+---
+
+## 23. Figures renumbered again, to the order of first citation in the revised text
+
+The reframing of item 22 moved the measurement-chain figure forward — it is now
+cited in the Results, where the idle floor is discussed, rather than in the
+Methods. Figures were renumbered accordingly and the files renamed with them:
+
+```
+Fig1_memory_traffic.*       unchanged
+Fig2_latency_energy.*       unchanged
+Fig3_measurement_chain.*    (was Fig4_measurement_chain)
+Fig4_ap_gain_vs_area.*      (was Fig3_ap_gain_vs_area)
+```
+
+`scripts/make_paper_figures.py` writes the new names, so the mapping remains
+generated rather than maintained by hand (item 21). All four were re-rendered
+from `results/`.
+
+---
+
+## 24. Four numeric inconsistencies introduced by the reframing, and two self-citations removed
+
+**How they arose.** The duty-cycle correction of item 22 was applied to the
+manuscript by scripted find-and-replace. One target string did not match, the
+script did not fail, and the paragraph it should have rewritten was left on the
+old model while the paragraph after it was updated. The result was a manuscript
+that contradicted itself. They were found by an independent recomputation of
+every figure in the text against this repository, not by the author's own
+review, and that is the relevant lesson: batch edits need a residue check, and
+this log now records one.
+
+**What was wrong.**
+
+| | In the text | Correct | Source of the error |
+|---|---|---|---|
+| Segment effect of architecture | 0.8% in Results, 0.4% in Conclusions | **0.4%** (218.5 → 219.4 J/tree) | failed replacement; the two sections disagreed |
+| Energy per tree | 220.2 J | **218.5 J** | old model `P_idle x cycle + P_active x t` |
+| Segment effect of resolution | 4.4% | **1.9%** (21.24 → 21.64 Wh) | same old model |
+| Idle-floor share | "94%–99%" | see below | range asserted without a stated basis |
+
+The idle-floor range could not be reproduced at its low end. The share is
+computed against the *incremental* draw of inference above the idle floor;
+under that definition it is 98.8% for the unified detector at 640 at a 45 s
+cycle. Charging the full active draw during inference instead gives 98.0% at
+45 s and 97.0% at 30 s for the same configuration, and 88.7% and 83.6% for the
+separate configuration at 1280 — the least favourable case, and below the 94%
+that was claimed. The manuscript now quotes a single configuration with the
+basis stated, and both framings are given in the table note and printed by
+`scripts/session_budget.py`.
+
+Note that `4.4x` — the ratio of the wait at 1280 to the wait at 640 — is
+correct and unrelated; only `4.4%` was wrong.
+
+**Two self-citations removed.** The reframed manuscript was expanded from the
+original draft and reintroduced two references to the author's own
+under-review work: one supporting the lesion-level annotation protocol, one
+identifying the fielded two-model configuration.
+
+- The annotation point is now supported by the published literature —
+  Barbedo, J.G.A. (2019), *Biosystems Engineering* **180**, 96–107,
+  doi:10.1016/j.biosystemseng.2019.02.002 — which is a stronger citation than
+  an unpublished manuscript for a claim of that kind.
+- The fielded configuration is now described as what it is, "the configuration
+  this node actually ran before the comparison reported here," which needs no
+  citation at all.
+
+The reference list is 27 entries, with no orphaned entries and no dangling
+citations. Both manuscripts remain disclosed in the cover letter, where the
+disclosure belongs; the point of removing the citations is that no claim in the
+paper depends on unpublished work.
+
+**Fixed in:** the manuscript throughout, and `README.md` (idle-share basis,
+annotation-protocol note).
+

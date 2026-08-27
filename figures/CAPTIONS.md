@@ -18,10 +18,12 @@ in. See `ERRATA.md` items 12–13 for what changed and why.
 
 ---
 
-**Fig. 3. The classes that gain from higher input resolution are the smaller ones, and they carry most of the data.** Change in AP@0.5 from 640 to 1280 for the unified detector, against mean bounding-box area (log scale). Six classes gain and six lose; the gaining set has a mean target area of 4,016 px² against 76,794 px² for the losing set, and carries 1,527 of the 1,765 validation instances against 238. Squares mark the two classes declared under-sampled in validation a priori; they are plotted for completeness and not interpreted individually. Excluding both, the area ratio falls from 19× to 9.7× and the rank correlation from ρ = −0.72 to ρ = −0.60 (p = 0.067).
+**Fig. 3. Instrumentation and measurement node.** Power is sampled at the battery pack (13.6–16.7 V), upstream of the HAT's 5 V buck converter, so the reported draw includes the SoC, the Active Cooler, the HAT's quiescent consumption, and buck conversion loss. This is the node that sets field endurance, and it is not the node at which published bare-board figures are measured.
 
 ---
 
-**Fig. 4. Instrumentation and measurement node.** Power is sampled at the battery pack (13.6–16.7 V), upstream of the HAT's 5 V buck converter, so the reported draw includes the SoC, the Active Cooler, the HAT's quiescent consumption, and buck conversion loss. This is the node that sets field endurance, and it is not the node at which published bare-board figures are measured.
+---
+
+**Fig. 4. The classes that gain from higher input resolution are the smaller ones, and they carry most of the data.** Change in AP@0.5 from 640 to 1280 for the unified detector, against mean bounding-box area (log scale). Six classes gain and six lose; the gaining set has a mean target area of 4,016 px² against 76,794 px² for the losing set, and carries 1,527 of the 1,765 validation instances against 238. Squares mark the two classes declared under-sampled in validation a priori; they are plotted for completeness and not interpreted individually. Excluding both, the area ratio falls from 19× to 9.7× and the rank correlation from ρ = −0.72 to ρ = −0.60 (p = 0.067).
 
 ---

@@ -118,7 +118,7 @@ def fig1():
             "Discharge control: active power varies 0.35% between a full pack (16.57 V) and a 25% pack (13.57 V).  "
             "Battery operation verified per sample by two witnesses.",
             fontsize=6.5, color=GREY, va="center")
-    save(fig, "Fig4_measurement_chain")
+    save(fig, "Fig3_measurement_chain")
 
 
 # ----------------------------------------------------------------------
@@ -203,7 +203,7 @@ def fig2():
                  loc="left", fontweight="bold", pad=8)
     fig.text(.125, -.02, "† Under-sampled in validation (weevil, 4 instances; Pink_disease, 20); "
              "not interpreted individually.", fontsize=6.5, color=GREY)
-    save(fig, "Fig3_ap_gain_vs_area")
+    save(fig, "Fig4_ap_gain_vs_area")
 
 
 # ----------------------------------------------------------------------
